@@ -3,10 +3,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { aiProviderService } from '../../services/ai/AIProviderService';
 import './Settings.css';
 
 interface SettingsData {
   claudeApiKey: string;
+  openaiApiKey: string;
+  aiProvider: 'claude' | 'openai' | 'auto';
+  aiModel: string;
   autoSaveInterval: number;
   theme: 'dark' | 'light';
   defaultResolution: string;
@@ -16,6 +20,9 @@ interface SettingsData {
 export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [settings, setSettings] = useState<SettingsData>({
     claudeApiKey: '',
+    openaiApiKey: '',
+    aiProvider: 'auto',
+    aiModel: '',
     autoSaveInterval: 5,
     theme: 'dark',
     defaultResolution: '1080p',
@@ -23,8 +30,14 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   });
 
   const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'export'>('ai');
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showClaudeKey, setShowClaudeKey] = useState(false);
+  const [showOpenAIKey, setShowOpenAIKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testingKey, setTestingKey] = useState<'claude' | 'openai' | null>(null);
+  const [keyTestResults, setKeyTestResults] = useState<{
+    claude?: boolean;
+    openai?: boolean;
+  }>({});
 
   useEffect(() => {
     // Load settings from localStorage
@@ -36,12 +49,57 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
   const handleSave = () => {
     localStorage.setItem('app-settings', JSON.stringify(settings));
+
+    // Update AI provider service
+    aiProviderService.updateConfig({
+      provider: settings.aiProvider,
+      claudeApiKey: settings.claudeApiKey,
+      openaiApiKey: settings.openaiApiKey,
+      model: settings.aiModel,
+    });
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
 
   const handleChange = (key: keyof SettingsData, value: any) => {
     setSettings({ ...settings, [key]: value });
+  };
+
+  const testAPIKey = async (provider: 'claude' | 'openai') => {
+    setTestingKey(provider);
+
+    const apiKey = provider === 'claude' ? settings.claudeApiKey : settings.openaiApiKey;
+
+    if (!apiKey || apiKey.trim().length === 0) {
+      alert('Введите API ключ');
+      setTestingKey(null);
+      return;
+    }
+
+    try {
+      const isValid = await aiProviderService.testAPIKey(provider, apiKey);
+      setKeyTestResults({ ...keyTestResults, [provider]: isValid });
+
+      if (isValid) {
+        alert(`✅ ${provider === 'claude' ? 'Claude' : 'OpenAI'} API ключ работает!`);
+      } else {
+        alert(`❌ ${provider === 'claude' ? 'Claude' : 'OpenAI'} API ключ недействителен`);
+      }
+    } catch (error) {
+      console.error('Key test error:', error);
+      setKeyTestResults({ ...keyTestResults, [provider]: false });
+      alert(`❌ Ошибка проверки ключа: ${error}`);
+    } finally {
+      setTestingKey(null);
+    }
+  };
+
+  const getAvailableModels = () => {
+    if (settings.aiProvider === 'auto') {
+      return [...aiProviderService.getAvailableModels('claude'), ...aiProviderService.getAvailableModels('openai')];
+    }
+    return aiProviderService.getAvailableModels(settings.aiProvider);
   };
 
   return (
@@ -114,27 +172,62 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div className="settings-section">
               <h3>🤖 AI Настройки</h3>
 
-              <div className="ai-info-box">
-                <h4>Рекомендуемый AI сервис:</h4>
-                <div className="ai-service">
-                  <div className="ai-service__header">
-                    <strong>Anthropic Claude API</strong>
-                    <span className="ai-service__badge">Рекомендуется</span>
+              <div className="settings-group">
+                <label className="settings-label">AI Провайдер</label>
+                <select
+                  className="settings-select"
+                  value={settings.aiProvider}
+                  onChange={(e) => handleChange('aiProvider', e.target.value)}
+                >
+                  <option value="auto">🔄 Автовыбор (рекомендуется)</option>
+                  <option value="claude">🔵 Anthropic Claude</option>
+                  <option value="openai">🟢 OpenAI GPT-5.2</option>
+                </select>
+                <p className="settings-hint">
+                  {settings.aiProvider === 'auto' && 'Автоматически выбирает лучший AI для каждой задачи'}
+                  {settings.aiProvider === 'claude' && 'Лучше для анализа и структурированных команд'}
+                  {settings.aiProvider === 'openai' && 'Лучше для креативной генерации контента'}
+                </p>
+              </div>
+
+              <div className="ai-providers-info">
+                <div className="ai-provider-card">
+                  <div className="ai-provider-card__header">
+                    <strong>🔵 Claude 3.5 Sonnet</strong>
+                    {settings.aiProvider === 'claude' && <span className="badge">Выбран</span>}
                   </div>
-                  <p className="ai-service__description">
-                    Claude 3.5 Sonnet - лучшая модель для понимания команд редактирования
-                  </p>
-                  <ul className="ai-service__features">
-                    <li>✅ Отличное понимание естественного языка</li>
-                    <li>✅ Большой контекст (200K токенов)</li>
-                    <li>✅ Точное выполнение команд</li>
-                    <li>✅ Доступная цена ($3/$15 за 1M токенов)</li>
+                  <ul className="ai-provider-card__features">
+                    <li>✅ Лучшее понимание команд редактирования</li>
+                    <li>✅ Контекст 200K токенов</li>
+                    <li>✅ Точное следование инструкциям</li>
+                    <li>💰 $3/$15 за 1M токенов</li>
                   </ul>
                   <a
                     href="https://console.anthropic.com/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="ai-service__link"
+                    className="ai-provider-card__link"
+                  >
+                    Получить API ключ →
+                  </a>
+                </div>
+
+                <div className="ai-provider-card">
+                  <div className="ai-provider-card__header">
+                    <strong>🟢 GPT-5.2 Turbo (2026)</strong>
+                    {settings.aiProvider === 'openai' && <span className="badge">Выбран</span>}
+                  </div>
+                  <ul className="ai-provider-card__features">
+                    <li>✅ Лучшая креативная генерация</li>
+                    <li>✅ Превосходные vision capabilities</li>
+                    <li>✅ Отлично для B-roll предложений</li>
+                    <li>💰 $5/$20 за 1M токенов</li>
+                  </ul>
+                  <a
+                    href="https://platform.openai.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-provider-card__link"
                   >
                     Получить API ключ →
                   </a>
@@ -150,7 +243,7 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 </label>
                 <div className="settings-input-group">
                   <input
-                    type={showApiKey ? 'text' : 'password'}
+                    type={showClaudeKey ? 'text' : 'password'}
                     className="settings-input"
                     value={settings.claudeApiKey}
                     onChange={(e) => handleChange('claudeApiKey', e.target.value)}
@@ -158,26 +251,93 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   />
                   <button
                     className="settings-input-btn"
-                    onClick={() => setShowApiKey(!showApiKey)}
+                    onClick={() => setShowClaudeKey(!showClaudeKey)}
                   >
-                    {showApiKey ? '🙈' : '👁️'}
+                    {showClaudeKey ? '🙈' : '👁️'}
+                  </button>
+                  <button
+                    className="settings-input-btn settings-input-btn--test"
+                    onClick={() => testAPIKey('claude')}
+                    disabled={testingKey === 'claude'}
+                  >
+                    {testingKey === 'claude' ? '⏳' : '🧪'}
                   </button>
                 </div>
+                {keyTestResults.claude !== undefined && (
+                  <p className={`settings-test-result ${keyTestResults.claude ? 'success' : 'error'}`}>
+                    {keyTestResults.claude ? '✅ Ключ действителен' : '❌ Ключ недействителен'}
+                  </p>
+                )}
+              </div>
+
+              <div className="settings-group">
+                <label className="settings-label">
+                  OpenAI API Key
+                  <span className="settings-label__hint">
+                    (начинается с sk-...)
+                  </span>
+                </label>
+                <div className="settings-input-group">
+                  <input
+                    type={showOpenAIKey ? 'text' : 'password'}
+                    className="settings-input"
+                    value={settings.openaiApiKey}
+                    onChange={(e) => handleChange('openaiApiKey', e.target.value)}
+                    placeholder="sk-..."
+                  />
+                  <button
+                    className="settings-input-btn"
+                    onClick={() => setShowOpenAIKey(!showOpenAIKey)}
+                  >
+                    {showOpenAIKey ? '🙈' : '👁️'}
+                  </button>
+                  <button
+                    className="settings-input-btn settings-input-btn--test"
+                    onClick={() => testAPIKey('openai')}
+                    disabled={testingKey === 'openai'}
+                  >
+                    {testingKey === 'openai' ? '⏳' : '🧪'}
+                  </button>
+                </div>
+                {keyTestResults.openai !== undefined && (
+                  <p className={`settings-test-result ${keyTestResults.openai ? 'success' : 'error'}`}>
+                    {keyTestResults.openai ? '✅ Ключ действителен' : '❌ Ключ недействителен'}
+                  </p>
+                )}
+              </div>
+
+              <div className="settings-group">
+                <label className="settings-label">Модель (опционально)</label>
+                <select
+                  className="settings-select"
+                  value={settings.aiModel}
+                  onChange={(e) => handleChange('aiModel', e.target.value)}
+                >
+                  <option value="">Авто (рекомендуется)</option>
+                  {getAvailableModels().map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+                <p className="settings-hint">
+                  Оставьте "Авто" для автоматического выбора оптимальной модели
+                </p>
               </div>
 
               <div className="settings-note">
                 <strong>💡 Работа без API ключа:</strong>
                 <p>
-                  Вы можете использовать редактор без AI ключа. Все функции
-                  редактирования будут доступны, кроме AI-ассистента и AI-эффектов.
+                  Вы можете использовать редактор без AI ключей. Все функции
+                  редактирования будут доступны, кроме AI-ассистента, AI-генерации и AI-эффектов.
                 </p>
               </div>
 
               <div className="settings-note settings-note--warning">
                 <strong>🔐 Безопасность:</strong>
                 <p>
-                  API ключ хранится локально на вашем компьютере и никуда не
-                  передается кроме API Anthropic для обработки команд.
+                  API ключи хранятся локально на вашем компьютере и передаются только
+                  в соответствующие API (Anthropic/OpenAI) для обработки запросов.
                 </p>
               </div>
             </div>
