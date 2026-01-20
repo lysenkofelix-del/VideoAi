@@ -202,6 +202,9 @@ Create titles and graphics
 
 - **[FEATURES.md](FEATURES.md)** - Complete feature list
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Development guide
+- **[BUILD_GUIDE.md](BUILD_GUIDE.md)** - Build .exe guide
+- **[PHASE2_COMPLETE.md](PHASE2_COMPLETE.md)** - Phase 2 features
+- **[PHASE3_COMPLETE.md](PHASE3_COMPLETE.md)** - Phase 3 features (NEW!)
 - **API Documentation** - Coming soon
 - **Video Tutorials** - Coming soon
 
@@ -221,20 +224,27 @@ Create titles and graphics
 - [x] Essential Graphics
 - [x] Workspaces system
 
-### Phase 2: Core Functionality 🔄 NEXT
-- [ ] Drag & Drop (Media → Timeline)
-- [ ] FFmpeg integration
-- [ ] Video playback in preview
-- [ ] Claude AI integration
-- [ ] Effect application
-- [ ] Transitions rendering
-- [ ] Export/Render system
+### Phase 2: Core Functionality ✅ COMPLETE
+- [x] Drag & Drop (Media → Timeline)
+- [x] Settings with API key management
+- [x] First Run welcome dialog
+- [x] Claude AI integration
+- [x] .exe builder configuration
 
-### Phase 3: Advanced Features
-- [ ] Keyframe animation
-- [ ] Audio waveforms
-- [ ] AI background removal
-- [ ] AI upscaling
+### Phase 3: Video Processing ✅ COMPLETE
+- [x] FFmpeg integration
+- [x] Video playback in preview
+- [x] Effect application system
+- [x] Transitions support
+- [x] Export/Render system with progress
+- [x] Keyframe animation (position, scale, rotation, opacity)
+- [x] Timeline playback controls
+
+### Phase 4: Advanced Features 🔄 NEXT
+- [ ] Audio waveforms visualization
+- [ ] Advanced color wheels/curves
+- [ ] AI background removal (integration)
+- [ ] AI upscaling (integration)
 - [ ] Speech-to-text
 - [ ] Auto color grading
 

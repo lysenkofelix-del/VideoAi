@@ -1,10 +1,11 @@
 /**
- * Timeline Component - Video editing timeline
+ * Timeline Component - Video editing timeline with playback
  */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useTimelineStore } from '../../stores/timelineStore';
 import { useMediaStore } from '../../stores/mediaStore';
+import { videoPlayerService } from '../../services/video/VideoPlayerService';
 import './Timeline.css';
 
 export const Timeline: React.FC = () => {
@@ -12,6 +13,7 @@ export const Timeline: React.FC = () => {
   const { getMediaById } = useMediaStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tracksContainerRef = useRef<HTMLDivElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -27,6 +29,26 @@ export const Timeline: React.FC = () => {
 
   const handleZoomIn = () => setZoom(zoom * 1.2);
   const handleZoomOut = () => setZoom(zoom / 1.2);
+
+  const handlePlay = () => {
+    if (isPlaying) {
+      videoPlayerService.pause();
+      setIsPlaying(false);
+    } else {
+      videoPlayerService.play();
+      setIsPlaying(true);
+    }
+  };
+
+  const handlePause = () => {
+    videoPlayerService.pause();
+    setIsPlaying(false);
+  };
+
+  const handleStop = () => {
+    videoPlayerService.stop();
+    setIsPlaying(false);
+  };
 
   const calculateDropPosition = (clientX: number): number => {
     if (!tracksContainerRef.current) return 0;
@@ -69,13 +91,18 @@ export const Timeline: React.FC = () => {
     <div className="timeline">
       <div className="timeline__header">
         <div className="timeline__controls">
-          <button className="timeline__btn" title="Воспроизведение">
-            ▶️
+          <button
+            className={`timeline__btn ${isPlaying ? 'active' : ''}`}
+            title={isPlaying ? 'Пауза' : 'Воспроизведение'}
+            onClick={handlePlay}
+          >
+            {isPlaying ? '⏸️' : '▶️'}
           </button>
-          <button className="timeline__btn" title="Пауза">
-            ⏸️
-          </button>
-          <button className="timeline__btn" title="Стоп">
+          <button
+            className="timeline__btn"
+            title="Стоп"
+            onClick={handleStop}
+          >
             ⏹️
           </button>
           <div className="timeline__timecode">{formatTime(cursor)}</div>

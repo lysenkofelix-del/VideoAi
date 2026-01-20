@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateThumbnail: (filePath: string) =>
     ipcRenderer.invoke('ffmpeg:generateThumbnail', filePath),
   exportVideo: (options: any) => ipcRenderer.invoke('ffmpeg:export', options),
+  getFFmpegPath: () => ipcRenderer.invoke('ffmpeg:getPath'),
+  ffmpeg: (options: any) => ipcRenderer.invoke('ffmpeg:process', options),
 });
 
 // TypeScript types for the exposed API
@@ -40,6 +42,8 @@ export interface ElectronAPI {
   getVideoMetadata: (filePath: string) => Promise<{ success: boolean; data?: any }>;
   generateThumbnail: (filePath: string) => Promise<{ success: boolean; data?: string }>;
   exportVideo: (options: any) => Promise<{ success: boolean }>;
+  getFFmpegPath: () => Promise<string | null>;
+  ffmpeg: (options: any) => Promise<any>;
 }
 
 declare global {
