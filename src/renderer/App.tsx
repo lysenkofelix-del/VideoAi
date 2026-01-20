@@ -3,11 +3,11 @@
  */
 
 import React from 'react';
-import { Layout } from './components/Layout/Layout';
+import { AdvancedLayout } from './components/Layout/AdvancedLayout';
 import './App.css';
 
 const App: React.FC = () => {
-  return <Layout />;
+  return <AdvancedLayout />;
 };
 
 export default App;
