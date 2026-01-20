@@ -119,11 +119,6 @@ export const Preview: React.FC = () => {
             width={1920}
             height={1080}
           />
-          <video
-            ref={videoRef}
-            className="preview__video"
-            style={{ display: 'none' }}
-          />
 
           {/* Play overlay when paused */}
           {!isPlaying && (
