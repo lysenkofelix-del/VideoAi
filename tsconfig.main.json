@@ -3,7 +3,7 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "node",
-    "outDir": "dist",
+    "outDir": "dist/main",
     "noEmit": false,
     "allowImportingTsExtensions": false,
     "esModuleInterop": true,

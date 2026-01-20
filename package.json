@@ -73,6 +73,9 @@
       "!dist/*.exe",
       "!dist/*.zip"
     ],
+    "extraMetadata": {
+      "main": "dist/main/main.js"
+    },
     "asar": true,
     "win": {
       "target": [

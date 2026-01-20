@@ -31,11 +31,21 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    const htmlPath = path.join(__dirname, '../renderer/index.html');
+    console.log('Loading HTML from:', htmlPath);
+    mainWindow.loadFile(htmlPath).catch((err) => {
+      console.error('Failed to load HTML:', err);
+    });
+    // Open DevTools in production for debugging
+    mainWindow.webContents.openDevTools();
   }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
+  });
+
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
   });
 
   mainWindow.on('closed', () => {
