@@ -2,7 +2,7 @@
   "name": "ai-video-editor",
   "version": "0.1.0",
   "description": "Professional AI-powered video editor with Claude integration",
-  "main": "dist/main/main.js",
+  "main": "./main/main.js",
   "scripts": {
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
     "dev:renderer": "vite",
@@ -62,7 +62,7 @@
     "appId": "com.videoai.editor",
     "productName": "AI-Video-Editor-PRO",
     "directories": {
-      "output": "dist",
+      "output": "release",
       "buildResources": "assets"
     },
     "files": [

@@ -35,16 +35,16 @@ jobs:
       with:
         name: windows-installer
         path: |
-          dist/*.exe
-          dist/*.zip
+          release/*.exe
+          release/*.zip
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          dist/*.exe
-          dist/*.zip
+          release/*.exe
+          release/*.zip
         draft: false
         prerelease: false
       env:
