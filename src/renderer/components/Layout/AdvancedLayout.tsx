@@ -2,7 +2,7 @@
  * Advanced Layout - Professional multi-panel layout with workspaces
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MediaPool } from '../MediaPool/MediaPool';
 import { Preview } from '../Preview/Preview';
 import { AIAssistant } from '../AIAssistant/AIAssistant';
@@ -11,6 +11,8 @@ import { EffectsPanel } from '../Effects/EffectsPanel';
 import { ColorPanel } from '../ColorPanel/ColorPanel';
 import { Inspector } from '../Inspector/Inspector';
 import { EssentialGraphics } from '../EssentialGraphics/EssentialGraphics';
+import { Settings } from '../Settings/Settings';
+import { FirstRunDialog } from '../FirstRun/FirstRunDialog';
 import './AdvancedLayout.css';
 
 type Workspace = 'editing' | 'color' | 'effects' | 'audio' | 'graphics';
@@ -21,6 +23,16 @@ export const AdvancedLayout: React.FC = () => {
   const [workspace, setWorkspace] = useState<Workspace>('editing');
   const [leftPanelTab, setLeftPanelTab] = useState<LeftPanelTab>('media');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('ai');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showFirstRun, setShowFirstRun] = useState(false);
+
+  // Check if first run
+  useEffect(() => {
+    const firstRunCompleted = localStorage.getItem('first-run-completed');
+    if (!firstRunCompleted) {
+      setShowFirstRun(true);
+    }
+  }, []);
 
   // Workspace presets
   const loadWorkspace = (ws: Workspace) => {
@@ -102,6 +114,9 @@ export const AdvancedLayout: React.FC = () => {
             <span className="project-name">Untitled Project</span>
             <span className="project-save-status" title="Auto-saved">●</span>
           </div>
+          <button className="settings-btn" onClick={() => setShowSettings(true)} title="Settings">
+            ⚙️
+          </button>
         </div>
       </header>
 
@@ -192,6 +207,23 @@ export const AdvancedLayout: React.FC = () => {
           <span className="status-bar__item">💾 256 GB free</span>
         </div>
       </footer>
+
+      {/* Settings Modal */}
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+
+      {/* First Run Dialog */}
+      {showFirstRun && (
+        <FirstRunDialog
+          onComplete={(skipAI) => {
+            setShowFirstRun(false);
+            if (skipAI) {
+              console.log('User chose to skip AI setup');
+            } else {
+              console.log('User configured AI');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

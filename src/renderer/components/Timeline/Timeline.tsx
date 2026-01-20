@@ -8,8 +8,10 @@ import { useMediaStore } from '../../stores/mediaStore';
 import './Timeline.css';
 
 export const Timeline: React.FC = () => {
-  const { tracks, cursor, zoom, duration, setCursor, setZoom } = useTimelineStore();
+  const { tracks, cursor, zoom, duration, setCursor, setZoom, addClip } = useTimelineStore();
+  const { getMediaById } = useMediaStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const tracksContainerRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -26,13 +28,35 @@ export const Timeline: React.FC = () => {
   const handleZoomIn = () => setZoom(zoom * 1.2);
   const handleZoomOut = () => setZoom(zoom / 1.2);
 
+  const calculateDropPosition = (clientX: number): number => {
+    if (!tracksContainerRef.current) return 0;
+    const rect = tracksContainerRef.current.getBoundingClientRect();
+    const offsetX = clientX - rect.left + tracksContainerRef.current.scrollLeft;
+    return Math.max(0, (offsetX / zoom) * 1000);
+  };
+
   const handleDrop = (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
     const data = JSON.parse(e.dataTransfer.getData('application/json'));
 
     if (data.type === 'media-item') {
-      // TODO: Calculate drop position and add clip to timeline
-      console.log('Drop media item:', data);
+      const media = getMediaById(data.mediaId);
+      if (!media) return;
+
+      const dropPosition = calculateDropPosition(e.clientX);
+      const clipDuration = media.duration || 5000; // Default 5 seconds for images
+
+      addClip({
+        mediaId: media.id,
+        mediaNumber: media.displayNumber,
+        trackId: trackId,
+        startTime: dropPosition,
+        duration: clipDuration,
+        inPoint: 0,
+        outPoint: clipDuration,
+      });
+
+      console.log(`✅ Added clip #${media.displayNumber} to ${trackId} at ${formatTime(dropPosition)}`);
     }
   };
 
@@ -99,7 +123,7 @@ export const Timeline: React.FC = () => {
           ))}
         </div>
 
-        <div className="timeline__tracks-container">
+        <div className="timeline__tracks-container" ref={tracksContainerRef}>
           <div className="timeline__ruler">
             {/* TODO: Render time ruler */}
             <div className="timeline__ruler-inner" style={{ width: `${duration * zoom / 1000}px` }}>

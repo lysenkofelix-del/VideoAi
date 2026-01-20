@@ -8,8 +8,25 @@ export class AIEditorService {
   private apiKey: string | null = null;
 
   constructor() {
-    // TODO: Load API key from settings
-    this.apiKey = null;
+    this.loadApiKey();
+  }
+
+  /**
+   * Load API key from settings
+   */
+  private loadApiKey() {
+    const settings = localStorage.getItem('app-settings');
+    if (settings) {
+      const parsed = JSON.parse(settings);
+      this.apiKey = parsed.claudeApiKey || null;
+    }
+  }
+
+  /**
+   * Check if AI is available
+   */
+  isAIAvailable(): boolean {
+    return !!this.apiKey && this.apiKey.trim().length > 0;
   }
 
   /**
@@ -19,17 +36,24 @@ export class AIEditorService {
     input: string,
     projectContext: ProjectContext
   ): Promise<AICommand[]> {
-    if (!this.apiKey) {
-      throw new Error('Claude API key not configured');
+    // Reload API key in case it was updated
+    this.loadApiKey();
+
+    if (!this.isAIAvailable()) {
+      // Fall back to mock parser if no API key
+      console.warn('AI not available, using basic parser');
+      return this.mockParseCommand(input);
     }
 
-    // TODO: Implement Claude API integration
-    // const systemPrompt = this.buildSystemPrompt(projectContext);
-    // const response = await this.callClaudeAPI(systemPrompt, input);
-    // return this.extractCommands(response);
-
-    // Temporary mock implementation
-    return this.mockParseCommand(input);
+    try {
+      const systemPrompt = this.buildSystemPrompt(projectContext);
+      const response = await this.callClaudeAPI(systemPrompt, input);
+      return this.extractCommands(response);
+    } catch (error) {
+      console.error('Claude API error:', error);
+      // Fall back to mock parser
+      return this.mockParseCommand(input);
+    }
   }
 
   /**
@@ -143,11 +167,70 @@ ${mediaList}
   }
 
   /**
-   * Call Claude API (to be implemented)
+   * Call Claude API
    */
   private async callClaudeAPI(systemPrompt: string, userMessage: string): Promise<any> {
-    // TODO: Implement Anthropic SDK integration
-    throw new Error('Claude API integration not yet implemented');
+    if (!this.apiKey) {
+      throw new Error('API key not available');
+    }
+
+    // Note: In production, this should be done via IPC to main process for security
+    // For now, making direct calls from renderer for simplicity
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': this.apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userMessage,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Claude API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data;
+  }
+
+  /**
+   * Extract commands from Claude response
+   */
+  private extractCommands(response: any): AICommand[] {
+    try {
+      // Claude returns content in the first message
+      const content = response.content?.[0]?.text || '';
+
+      // Try to parse JSON from response
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.actions && Array.isArray(parsed.actions)) {
+          return parsed.actions.map((action: any) => ({
+            type: action.action,
+            mediaReferences: action.target || [],
+            parameters: action.params || {},
+          }));
+        }
+      }
+
+      // Fallback to empty array if parsing fails
+      return [];
+    } catch (error) {
+      console.error('Failed to extract commands from Claude response:', error);
+      return [];
+    }
   }
 }
 
