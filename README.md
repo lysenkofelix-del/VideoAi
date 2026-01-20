@@ -30,6 +30,12 @@
   "Auto-grade colors on all clips"
   "Generate subtitles for #7"
   ```
+- **AI Quick Actions Menu** - One-click AI features:
+  - Generate Subtitles (speech-to-text)
+  - Smart Transitions (auto-suggested)
+  - B-roll Generation (text-to-video)
+  - Auto Color Grading (AI-powered)
+  - Open AI Assistant
 - **AI Effects**:
   - Background removal (no green screen!)
   - Object removal

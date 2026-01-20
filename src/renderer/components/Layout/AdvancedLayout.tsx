@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { MediaPool } from '../MediaPool/MediaPool';
 import { Preview } from '../Preview/Preview';
 import { AIAssistant } from '../AIAssistant/AIAssistant';
+import { AIMenu } from '../AIMenu/AIMenu';
 import { Timeline } from '../Timeline/Timeline';
 import { EffectsPanel } from '../Effects/EffectsPanel';
 import { ColorPanel } from '../ColorPanel/ColorPanel';
@@ -73,7 +74,11 @@ export const AdvancedLayout: React.FC = () => {
             <button className="menu__item">Clip</button>
             <button className="menu__item">Sequence</button>
             <button className="menu__item">Effects</button>
-            <button className="menu__item">AI</button>
+            <AIMenu
+              onOpenAssistant={() => {
+                setRightPanelTab('ai');
+              }}
+            />
             <button className="menu__item">Export</button>
             <button className="menu__item">Help</button>
           </nav>

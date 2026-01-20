@@ -4,9 +4,17 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '@shared/types';
+import { aiEditorService } from '@renderer/services/ai/AIEditorService';
+import { aiCommandExecutor } from '@renderer/services/ai/AICommandExecutor';
+import { aiProviderService } from '@renderer/services/ai/AIProviderService';
+import { useTimelineStore } from '@renderer/stores/timelineStore';
+import { useMediaStore } from '@renderer/stores/mediaStore';
 import './AIAssistant.css';
 
 export const AIAssistant: React.FC = () => {
+  const clips = useTimelineStore((state) => state.clips);
+  const mediaItems = useMediaStore((state) => state.mediaItems);
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       role: 'assistant',
@@ -39,31 +47,76 @@ export const AIAssistant: React.FC = () => {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const userInput = input;
     setInput('');
     setIsProcessing(true);
 
     try {
-      // TODO: Implement AI service integration
-      // const response = await aiService.parseCommand(input);
+      // Check if AI is configured
+      const config = aiProviderService.getConfig();
+      if (!config.claudeApiKey && !config.openaiApiKey) {
+        throw new Error(
+          'AI не настроен. Пожалуйста, добавьте API ключ Claude или OpenAI в настройках.'
+        );
+      }
 
-      // Temporary mock response
-      setTimeout(() => {
-        const assistantMessage: ChatMessage = {
-          role: 'assistant',
-          content: `Понял команду: "${input}". (Это временный ответ, пока AI-сервис не реализован)`,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-        setIsProcessing(false);
-      }, 1000);
+      // Build project context
+      const projectContext = {
+        clips,
+        mediaItems,
+        currentTime: 0,
+        totalDuration: clips.reduce((sum, c) => sum + c.duration, 0),
+      };
+
+      // Parse command using AI
+      const commands = await aiEditorService.parseUserCommand(userInput, projectContext);
+
+      // Execute commands
+      const result = await aiCommandExecutor.executeCommands(commands);
+
+      // Create response message
+      let responseContent = '';
+      if (result.success) {
+        responseContent = `✅ Выполнено!\n\n`;
+        if (result.addedClips > 0) {
+          responseContent += `• Добавлено клипов: ${result.addedClips}\n`;
+        }
+        if (result.modifiedClips > 0) {
+          responseContent += `• Изменено клипов: ${result.modifiedClips}\n`;
+        }
+        if (result.deletedClips > 0) {
+          responseContent += `• Удалено клипов: ${result.deletedClips}\n`;
+        }
+        if (result.addedEffects > 0) {
+          responseContent += `• Применено эффектов: ${result.addedEffects}\n`;
+        }
+        if (result.message) {
+          responseContent += `\n${result.message}`;
+        }
+      } else {
+        responseContent = `❌ Ошибка выполнения:\n${result.message || 'Неизвестная ошибка'}`;
+        if (result.errors && result.errors.length > 0) {
+          responseContent += '\n\nДетали:\n' + result.errors.join('\n');
+        }
+      }
+
+      const assistantMessage: ChatMessage = {
+        role: 'assistant',
+        content: responseContent,
+        timestamp: new Date(),
+        isError: !result.success,
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
+      console.error('AI Assistant Error:', error);
       const errorMessage: ChatMessage = {
         role: 'assistant',
-        content: `Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`,
+        content: `❌ Ошибка: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`,
         isError: true,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsProcessing(false);
     }
   };
