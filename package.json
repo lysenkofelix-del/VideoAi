@@ -60,22 +60,14 @@
   },
   "build": {
     "appId": "com.videoai.editor",
-    "productName": "AI Video Editor PRO",
+    "productName": "AI-Video-Editor-PRO",
     "directories": {
-      "output": "release",
+      "output": "dist",
       "buildResources": "assets"
     },
     "files": [
       "dist/**/*",
-      "assets/**/*",
       "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "assets",
-        "to": "assets",
-        "filter": ["**/*"]
-      }
     ],
     "win": {
       "target": [
@@ -88,21 +80,17 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "assets/icons/icon.ico",
-      "artifactName": "${productName}-${version}-Setup.${ext}"
+      "artifactName": "${productName}-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "AI Video Editor PRO",
-      "installerIcon": "assets/icons/icon.ico",
-      "uninstallerIcon": "assets/icons/icon.ico",
-      "license": "LICENSE"
+      "shortcutName": "AI Video Editor PRO"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-Portable.${ext}"
+      "artifactName": "${productName}-Portable.${ext}"
     },
     "mac": {
       "category": "public.app-category.video",
