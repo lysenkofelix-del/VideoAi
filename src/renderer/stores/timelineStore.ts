@@ -11,7 +11,7 @@ interface TimelineState extends Timeline {
   // Actions
   addTrack: (type: Track['type']) => void;
   removeTrack: (trackId: string) => void;
-  addClip: (clip: Omit<Clip, 'id'>) => void;
+  addClip: (clip: Omit<Clip, 'id'>) => Clip; // Now returns the created clip
   removeClip: (clipId: string) => void;
   updateClip: (clipId: string, updates: Partial<Clip>) => void;
   moveClip: (clipId: string, trackId: string, startTime: number) => void;
@@ -93,6 +93,9 @@ export const useTimelineStore = create<TimelineState>((set, get) => ({
     );
 
     set({ tracks, duration: maxDuration });
+
+    // Return the created clip for reference
+    return clip;
   },
 
   removeClip: (clipId) => {

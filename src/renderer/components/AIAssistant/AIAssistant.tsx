@@ -12,7 +12,9 @@ import { useMediaStore } from '@renderer/stores/mediaStore';
 import './AIAssistant.css';
 
 export const AIAssistant: React.FC = () => {
-  const clips = useTimelineStore((state) => state.clips);
+  // Get all clips from all tracks
+  const clips = useTimelineStore((state) => state.tracks.flatMap(track => track.clips));
+  const tracks = useTimelineStore((state) => state.tracks);
   const mediaItems = useMediaStore((state) => state.mediaItems);
 
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -63,9 +65,10 @@ export const AIAssistant: React.FC = () => {
       // Build project context
       const projectContext = {
         clips,
+        tracks,
         mediaItems,
         currentTime: 0,
-        totalDuration: clips.reduce((sum, c) => sum + c.duration, 0),
+        totalDuration: clips.length > 0 ? clips.reduce((sum, c) => sum + c.duration, 0) : 0,
       };
 
       // Parse command using AI

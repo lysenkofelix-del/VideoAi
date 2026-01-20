@@ -9,7 +9,11 @@ import './Settings.css';
 interface SettingsData {
   claudeApiKey: string;
   openaiApiKey: string;
-  aiProvider: 'claude' | 'openai' | 'auto';
+  geminiApiKey: string;
+  customApiKey: string;
+  customApiUrl: string;
+  customApiModel: string;
+  aiProvider: 'claude' | 'openai' | 'gemini' | 'custom' | 'auto';
   aiModel: string;
   autoSaveInterval: number;
   theme: 'dark' | 'light';
@@ -21,6 +25,10 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [settings, setSettings] = useState<SettingsData>({
     claudeApiKey: '',
     openaiApiKey: '',
+    geminiApiKey: '',
+    customApiKey: '',
+    customApiUrl: '',
+    customApiModel: '',
     aiProvider: 'auto',
     aiModel: '',
     autoSaveInterval: 5,
@@ -32,11 +40,15 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'ai' | 'export'>('ai');
   const [showClaudeKey, setShowClaudeKey] = useState(false);
   const [showOpenAIKey, setShowOpenAIKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [showCustomKey, setShowCustomKey] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [testingKey, setTestingKey] = useState<'claude' | 'openai' | null>(null);
+  const [testingKey, setTestingKey] = useState<'claude' | 'openai' | 'gemini' | 'custom' | null>(null);
   const [keyTestResults, setKeyTestResults] = useState<{
     claude?: boolean;
     openai?: boolean;
+    gemini?: boolean;
+    custom?: boolean;
   }>({});
 
   useEffect(() => {
@@ -55,6 +67,10 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       provider: settings.aiProvider,
       claudeApiKey: settings.claudeApiKey,
       openaiApiKey: settings.openaiApiKey,
+      geminiApiKey: settings.geminiApiKey,
+      customApiKey: settings.customApiKey,
+      customApiUrl: settings.customApiUrl,
+      customApiModel: settings.customApiModel,
       model: settings.aiModel,
     });
 
@@ -66,10 +82,24 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setSettings({ ...settings, [key]: value });
   };
 
-  const testAPIKey = async (provider: 'claude' | 'openai') => {
+  const testAPIKey = async (provider: 'claude' | 'openai' | 'gemini' | 'custom') => {
     setTestingKey(provider);
 
-    const apiKey = provider === 'claude' ? settings.claudeApiKey : settings.openaiApiKey;
+    let apiKey = '';
+    switch (provider) {
+      case 'claude':
+        apiKey = settings.claudeApiKey;
+        break;
+      case 'openai':
+        apiKey = settings.openaiApiKey;
+        break;
+      case 'gemini':
+        apiKey = settings.geminiApiKey;
+        break;
+      case 'custom':
+        apiKey = settings.customApiKey;
+        break;
+    }
 
     if (!apiKey || apiKey.trim().length === 0) {
       alert('Введите API ключ');
@@ -81,10 +111,17 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       const isValid = await aiProviderService.testAPIKey(provider, apiKey);
       setKeyTestResults({ ...keyTestResults, [provider]: isValid });
 
+      const providerNames = {
+        claude: 'Claude',
+        openai: 'OpenAI',
+        gemini: 'Google Gemini',
+        custom: 'Custom API',
+      };
+
       if (isValid) {
-        alert(`✅ ${provider === 'claude' ? 'Claude' : 'OpenAI'} API ключ работает!`);
+        alert(`✅ ${providerNames[provider]} API ключ работает!`);
       } else {
-        alert(`❌ ${provider === 'claude' ? 'Claude' : 'OpenAI'} API ключ недействителен`);
+        alert(`❌ ${providerNames[provider]} API ключ недействителен`);
       }
     } catch (error) {
       console.error('Key test error:', error);
@@ -181,13 +218,22 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 >
                   <option value="auto">🔄 Автовыбор (рекомендуется)</option>
                   <option value="claude">🔵 Anthropic Claude</option>
-                  <option value="openai">🟢 OpenAI GPT-5.2</option>
+                  <option value="openai">🟢 OpenAI GPT</option>
+                  <option value="gemini">🟡 Google Gemini</option>
+                  <option value="custom">🔧 Custom API</option>
                 </select>
                 <p className="settings-hint">
                   {settings.aiProvider === 'auto' && 'Автоматически выбирает лучший AI для каждой задачи'}
                   {settings.aiProvider === 'claude' && 'Лучше для анализа и структурированных команд'}
                   {settings.aiProvider === 'openai' && 'Лучше для креативной генерации контента'}
+                  {settings.aiProvider === 'gemini' && 'Бесплатный tier, хорошо для начинающих'}
+                  {settings.aiProvider === 'custom' && 'Используйте собственный AI endpoint'}
                 </p>
+              </div>
+
+              <div className="ai-help-banner">
+                <p>📖 <strong>Нужна помощь с API ключами?</strong></p>
+                <p>Смотрите подробную инструкцию в файле <code>API_KEYS_GUIDE.md</code> в корне проекта</p>
               </div>
 
               <div className="ai-providers-info">
@@ -305,6 +351,111 @@ export const Settings: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                   </p>
                 )}
               </div>
+
+              <div className="settings-group">
+                <label className="settings-label">
+                  Google Gemini API Key
+                  <span className="settings-label__hint">
+                    (начинается с AIzaSy...)
+                  </span>
+                </label>
+                <div className="settings-input-group">
+                  <input
+                    type={showGeminiKey ? 'text' : 'password'}
+                    className="settings-input"
+                    value={settings.geminiApiKey}
+                    onChange={(e) => handleChange('geminiApiKey', e.target.value)}
+                    placeholder="AIzaSy..."
+                  />
+                  <button
+                    className="settings-input-btn"
+                    onClick={() => setShowGeminiKey(!showGeminiKey)}
+                  >
+                    {showGeminiKey ? '🙈' : '👁️'}
+                  </button>
+                  <button
+                    className="settings-input-btn settings-input-btn--test"
+                    onClick={() => testAPIKey('gemini')}
+                    disabled={testingKey === 'gemini'}
+                  >
+                    {testingKey === 'gemini' ? '⏳' : '🧪'}
+                  </button>
+                </div>
+                {keyTestResults.gemini !== undefined && (
+                  <p className={`settings-test-result ${keyTestResults.gemini ? 'success' : 'error'}`}>
+                    {keyTestResults.gemini ? '✅ Ключ действителен' : '❌ Ключ недействителен'}
+                  </p>
+                )}
+                <p className="settings-hint">
+                  ✨ Бесплатный tier: 15 запросов/мин. Получить на{' '}
+                  <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer">
+                    aistudio.google.com
+                  </a>
+                </p>
+              </div>
+
+              {settings.aiProvider === 'custom' && (
+                <>
+                  <div className="settings-group">
+                    <label className="settings-label">Custom API URL</label>
+                    <input
+                      type="text"
+                      className="settings-input"
+                      value={settings.customApiUrl}
+                      onChange={(e) => handleChange('customApiUrl', e.target.value)}
+                      placeholder="https://api.example.com/v1"
+                    />
+                    <p className="settings-hint">
+                      OpenAI-совместимый endpoint (например: Together.ai, OpenRouter, Groq)
+                    </p>
+                  </div>
+
+                  <div className="settings-group">
+                    <label className="settings-label">Custom API Key</label>
+                    <div className="settings-input-group">
+                      <input
+                        type={showCustomKey ? 'text' : 'password'}
+                        className="settings-input"
+                        value={settings.customApiKey}
+                        onChange={(e) => handleChange('customApiKey', e.target.value)}
+                        placeholder="Ваш custom API ключ"
+                      />
+                      <button
+                        className="settings-input-btn"
+                        onClick={() => setShowCustomKey(!showCustomKey)}
+                      >
+                        {showCustomKey ? '🙈' : '👁️'}
+                      </button>
+                      <button
+                        className="settings-input-btn settings-input-btn--test"
+                        onClick={() => testAPIKey('custom')}
+                        disabled={testingKey === 'custom'}
+                      >
+                        {testingKey === 'custom' ? '⏳' : '🧪'}
+                      </button>
+                    </div>
+                    {keyTestResults.custom !== undefined && (
+                      <p className={`settings-test-result ${keyTestResults.custom ? 'success' : 'error'}`}>
+                        {keyTestResults.custom ? '✅ Ключ действителен' : '❌ Ключ недействителен'}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="settings-group">
+                    <label className="settings-label">Model Name</label>
+                    <input
+                      type="text"
+                      className="settings-input"
+                      value={settings.customApiModel}
+                      onChange={(e) => handleChange('customApiModel', e.target.value)}
+                      placeholder="gpt-4, llama-3-70b, etc."
+                    />
+                    <p className="settings-hint">
+                      Название модели как указано в документации вашего провайдера
+                    </p>
+                  </div>
+                </>
+              )}
 
               <div className="settings-group">
                 <label className="settings-label">Модель (опционально)</label>
