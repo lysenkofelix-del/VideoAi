@@ -2,7 +2,7 @@
  * Preview Component - Video preview window with real playback
  */
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useTimelineStore } from '../../stores/timelineStore';
 import { useMediaStore } from '../../stores/mediaStore';
 import { videoPlayerService } from '../../services/video/VideoPlayerService';
@@ -15,8 +15,20 @@ export const Preview: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSafeZones, setShowSafeZones] = useState(true);
   const [quality, setQuality] = useState<'full' | 'half' | 'quarter'>('full');
+  const renderTimeoutRef = useRef<number | null>(null);
+  const lastRenderTimeRef = useRef<number>(0);
 
-  // Initialize video player
+  // Refs to access current values in render loop (avoid stale closures)
+  const tracksRef = useRef(tracks);
+  const mediaItemsRef = useRef(mediaItems);
+
+  // Keep refs in sync with current values
+  useEffect(() => {
+    tracksRef.current = tracks;
+    mediaItemsRef.current = mediaItems;
+  }, [tracks, mediaItems]);
+
+  // Initialize video player (only once)
   useEffect(() => {
     if (canvasRef.current) {
       videoPlayerService.init(canvasRef.current);
@@ -31,27 +43,71 @@ export const Preview: React.FC = () => {
         unsubscribe();
       };
     }
-  }, [tracks, mediaItems, duration]);
+  }, []); // Empty deps - only init once
 
-  // Render frame when cursor changes or tracks update
+  // Update timeline when tracks/media change (not on every render)
+  useEffect(() => {
+    videoPlayerService.loadTimeline(tracks, mediaItems, duration);
+  }, [tracks.length, mediaItems.length, duration]); // Only when count changes
+
+  // Throttled render frame when cursor changes (max 30 FPS)
   useEffect(() => {
     if (!isPlaying) {
-      videoPlayerService.renderFrame(tracks, mediaItems, cursor);
-    }
-  }, [cursor, tracks, mediaItems, isPlaying]);
+      // Check if there are any clips - skip rendering if timeline is empty
+      const hasClips = tracksRef.current.some(track => track.clips.length > 0);
 
-  // Render loop when playing
+      if (!hasClips) {
+        // Only render once for empty state, not continuously
+        if (renderTimeoutRef.current) {
+          window.clearTimeout(renderTimeoutRef.current);
+        }
+        videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+        return;
+      }
+
+      const now = Date.now();
+      const timeSinceLastRender = now - lastRenderTimeRef.current;
+
+      if (timeSinceLastRender >= 33) { // ~30 FPS max
+        videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+        lastRenderTimeRef.current = now;
+      } else {
+        // Debounce - schedule render for later
+        if (renderTimeoutRef.current) {
+          window.clearTimeout(renderTimeoutRef.current);
+        }
+        renderTimeoutRef.current = window.setTimeout(() => {
+          videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, Date.now());
+          lastRenderTimeRef.current = Date.now();
+        }, 33 - timeSinceLastRender);
+      }
+    }
+
+    return () => {
+      if (renderTimeoutRef.current) {
+        window.clearTimeout(renderTimeoutRef.current);
+      }
+    };
+  }, [cursor, isPlaying]); // Removed tracks/mediaItems from deps!
+
+  // Render loop when playing (uses ref to avoid re-creating)
   useEffect(() => {
     if (isPlaying) {
+      let animationId: number;
       const renderLoop = () => {
-        videoPlayerService.renderFrame(tracks, mediaItems, cursor);
-        if (isPlaying) {
-          requestAnimationFrame(renderLoop);
+        // Use refs to get current values (avoid stale closure)
+        videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+        animationId = requestAnimationFrame(renderLoop);
+      };
+      animationId = requestAnimationFrame(renderLoop);
+
+      return () => {
+        if (animationId) {
+          cancelAnimationFrame(animationId);
         }
       };
-      requestAnimationFrame(renderLoop);
     }
-  }, [isPlaying, tracks, mediaItems, cursor]);
+  }, [isPlaying, cursor]); // Need cursor for current playback position
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);

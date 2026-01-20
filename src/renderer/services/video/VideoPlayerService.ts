@@ -195,7 +195,7 @@ export class VideoPlayerService {
       this.ctx.font = '18px Arial';
       this.ctx.fillStyle = '#555';
       this.ctx.fillText('Перетащите медиа на видео дорожку', this.canvas.width / 2, this.canvas.height / 2 + 70);
-      console.log(`[VideoPlayer] No active clips at ${currentTime}ms. Total tracks: ${tracks.length}, Total clips: ${tracks.reduce((sum, t) => sum + t.clips.length, 0)}`);
+      // Removed excessive logging that fires on every frame
       return;
     }
 
