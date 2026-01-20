@@ -9,11 +9,12 @@ import { videoPlayerService } from '../../services/video/VideoPlayerService';
 import './Timeline.css';
 
 export const Timeline: React.FC = () => {
-  const { tracks, cursor, zoom, duration, setCursor, setZoom, addClip } = useTimelineStore();
+  const { tracks, cursor, zoom, duration, setCursor, setZoom, addClip, moveClip } = useTimelineStore();
   const { getMediaById } = useMediaStore();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tracksContainerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [draggingClip, setDraggingClip] = useState<string | null>(null);
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
@@ -57,15 +58,31 @@ export const Timeline: React.FC = () => {
     return Math.max(0, (offsetX / zoom) * 1000);
   };
 
+  const handleClipDragStart = (e: React.DragEvent, clipId: string) => {
+    e.stopPropagation();
+    setDraggingClip(clipId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'timeline-clip', clipId }));
+  };
+
+  const handleClipDragEnd = () => {
+    setDraggingClip(null);
+  };
+
   const handleDrop = (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
     const data = JSON.parse(e.dataTransfer.getData('application/json'));
+    const dropPosition = calculateDropPosition(e.clientX);
 
-    if (data.type === 'media-item') {
+    if (data.type === 'timeline-clip') {
+      // Moving existing clip
+      moveClip(data.clipId, trackId, dropPosition);
+      console.log(`✅ Moved clip to ${trackId} at ${formatTime(dropPosition)}`);
+    } else if (data.type === 'media-item') {
+      // Adding new clip from media pool
       const media = getMediaById(data.mediaId);
       if (!media) return;
 
-      const dropPosition = calculateDropPosition(e.clientX);
       const clipDuration = media.duration || 5000; // Default 5 seconds for images
 
       addClip({
@@ -84,7 +101,7 @@ export const Timeline: React.FC = () => {
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    e.dataTransfer.dropEffect = draggingClip ? 'move' : 'copy';
   };
 
   return (
@@ -177,11 +194,14 @@ export const Timeline: React.FC = () => {
                 {track.clips.map((clip) => (
                   <div
                     key={clip.id}
-                    className="timeline__clip"
+                    className={`timeline__clip ${draggingClip === clip.id ? 'timeline__clip--dragging' : ''}`}
                     style={{
                       left: `${(clip.startTime * zoom) / 1000}px`,
                       width: `${(clip.duration * zoom) / 1000}px`,
                     }}
+                    draggable
+                    onDragStart={(e) => handleClipDragStart(e, clip.id)}
+                    onDragEnd={handleClipDragEnd}
                   >
                     <div className="timeline__clip-content">
                       <span className="timeline__clip-number">#{clip.mediaNumber}</span>

@@ -168,36 +168,60 @@ export class VideoPlayerService {
     mediaItems: MediaItem[],
     currentTime: number
   ): Promise<void> {
-    if (!this.canvas || !this.ctx) return;
+    if (!this.canvas || !this.ctx) {
+      console.warn('[VideoPlayer] Canvas not initialized');
+      return;
+    }
 
     // Clear canvas
-    this.ctx.fillStyle = '#000';
+    this.ctx.fillStyle = '#1a1a1a';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Find all clips at current time (from all tracks)
     const activeClips = this.getActiveClips(tracks, currentTime);
+
+    if (activeClips.length === 0) {
+      // No active clips - show placeholder
+      this.ctx.fillStyle = '#333';
+      this.ctx.font = '48px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('No clips at current time', this.canvas.width / 2, this.canvas.height / 2);
+      this.ctx.font = '24px Arial';
+      this.ctx.fillStyle = '#666';
+      this.ctx.fillText(`Time: ${Math.floor(currentTime / 1000)}s`, this.canvas.width / 2, this.canvas.height / 2 + 50);
+      return;
+    }
 
     // Render clips from bottom to top (respecting track order)
     for (const { clip, track } of activeClips) {
       if (!track.visible) continue;
 
       const media = mediaItems.find((m) => m.id === clip.mediaId);
-      if (!media) continue;
+      if (!media) {
+        console.warn(`[VideoPlayer] Media not found for clip ${clip.id}`);
+        continue;
+      }
 
       // Calculate time within clip
       const clipTime = currentTime - clip.startTime + clip.inPoint;
 
       // Render based on media type
-      switch (media.type) {
-        case 'video':
-          await this.renderVideoClip(clip, media, clipTime);
-          break;
-        case 'image':
-          await this.renderImageClip(clip, media);
-          break;
-        case 'title':
-          this.renderTitleClip(clip);
-          break;
+      try {
+        switch (media.type) {
+          case 'video':
+            await this.renderVideoClip(clip, media, clipTime);
+            break;
+          case 'image':
+            await this.renderImageClip(clip, media);
+            break;
+          case 'title':
+            this.renderTitleClip(clip);
+            break;
+        }
+      } catch (error) {
+        console.error(`[VideoPlayer] Error rendering clip:`, error);
+        this.renderPlaceholder(clip, media);
       }
     }
   }
