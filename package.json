@@ -63,17 +63,21 @@
     "productName": "AI-Video-Editor-PRO",
     "directories": {
       "output": "release",
-      "buildResources": "assets"
+      "buildResources": "assets",
+      "app": "."
     },
     "files": [
-      "dist/main/**/*",
-      "dist/renderer/**/*",
-      "package.json"
+      "!**/node_modules/**/*",
+      "dist/**/*",
+      "package.json",
+      "!dist/win-unpacked",
+      "!dist/*.exe",
+      "!dist/*.zip"
     ],
     "extraMetadata": {
       "main": "dist/main/main.js"
     },
-    "asar": false,
+    "asar": true,
     "win": {
       "target": [
         {
