@@ -73,6 +73,7 @@
     "extraMetadata": {
       "main": "dist/main/main.js"
     },
+    "asar": false,
     "win": {
       "target": [
         {
