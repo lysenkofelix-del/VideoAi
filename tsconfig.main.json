@@ -3,12 +3,13 @@
   "compilerOptions": {
     "module": "CommonJS",
     "moduleResolution": "node",
-    "outDir": "dist/main",
+    "outDir": "dist",
     "noEmit": false,
     "allowImportingTsExtensions": false,
     "esModuleInterop": true,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "rootDir": "src"
   },
   "include": ["src/main/**/*", "src/shared/**/*"]
 }

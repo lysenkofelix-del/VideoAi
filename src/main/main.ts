@@ -31,10 +31,12 @@ function createWindow() {
     mainWindow.loadURL('http://localhost:5173');
     mainWindow.webContents.openDevTools();
   } else {
+    // In production, __dirname is app/main, renderer is in app/renderer
     const htmlPath = path.join(__dirname, '../renderer/index.html');
-    console.log('Loading HTML from:', htmlPath);
+    console.log('[Main] Loading HTML from:', htmlPath);
+    console.log('[Main] __dirname:', __dirname);
     mainWindow.loadFile(htmlPath).catch((err) => {
-      console.error('Failed to load HTML:', err);
+      console.error('[Main] Failed to load HTML:', err);
     });
     // Open DevTools in production for debugging
     mainWindow.webContents.openDevTools();

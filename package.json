@@ -68,13 +68,13 @@
     "files": [
       {
         "from": "dist",
-        "to": "dist",
+        "to": ".",
         "filter": ["**/*"]
       },
       "package.json"
     ],
     "extraMetadata": {
-      "main": "dist/main/main.js"
+      "main": "main/main.js"
     },
     "asar": false,
     "win": {
