@@ -83,19 +83,36 @@ export const Timeline: React.FC = () => {
       const media = getMediaById(data.mediaId);
       if (!media) return;
 
+      // Auto-select correct track based on media type
+      let targetTrack = trackId;
+      const track = tracks.find(t => t.id === trackId);
+
+      if (track) {
+        // Check if media type matches track type
+        if (media.type === 'video' && track.type === 'audio') {
+          // Video on audio track - move to video track
+          const videoTrack = tracks.find(t => t.type === 'video');
+          if (videoTrack) targetTrack = videoTrack.id;
+        } else if (media.type === 'audio' && track.type === 'video') {
+          // Audio on video track - move to audio track
+          const audioTrack = tracks.find(t => t.type === 'audio');
+          if (audioTrack) targetTrack = audioTrack.id;
+        }
+      }
+
       const clipDuration = media.duration || 5000; // Default 5 seconds for images
 
       addClip({
         mediaId: media.id,
         mediaNumber: media.displayNumber,
-        trackId: trackId,
+        trackId: targetTrack,
         startTime: dropPosition,
         duration: clipDuration,
         inPoint: 0,
         outPoint: clipDuration,
       });
 
-      console.log(`✅ Added clip #${media.displayNumber} to ${trackId} at ${formatTime(dropPosition)}`);
+      console.log(`✅ Added ${media.type} clip #${media.displayNumber} to ${targetTrack} at ${formatTime(dropPosition)}, duration: ${formatTime(clipDuration)}`);
     }
   };
 

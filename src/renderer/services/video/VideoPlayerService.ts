@@ -182,14 +182,20 @@ export class VideoPlayerService {
 
     if (activeClips.length === 0) {
       // No active clips - show placeholder
-      this.ctx.fillStyle = '#333';
-      this.ctx.font = '48px Arial';
+      this.ctx.fillStyle = '#444';
+      this.ctx.font = '36px Arial';
       this.ctx.textAlign = 'center';
       this.ctx.textBaseline = 'middle';
-      this.ctx.fillText('No clips at current time', this.canvas.width / 2, this.canvas.height / 2);
+      this.ctx.fillText('Нет клипов на текущей позиции', this.canvas.width / 2, this.canvas.height / 2 - 20);
       this.ctx.font = '24px Arial';
       this.ctx.fillStyle = '#666';
-      this.ctx.fillText(`Time: ${Math.floor(currentTime / 1000)}s`, this.canvas.width / 2, this.canvas.height / 2 + 50);
+      const minutes = Math.floor(currentTime / 60000);
+      const seconds = Math.floor((currentTime % 60000) / 1000);
+      this.ctx.fillText(`Позиция: ${minutes}:${seconds.toString().padStart(2, '0')}`, this.canvas.width / 2, this.canvas.height / 2 + 30);
+      this.ctx.font = '18px Arial';
+      this.ctx.fillStyle = '#555';
+      this.ctx.fillText('Перетащите медиа на видео дорожку', this.canvas.width / 2, this.canvas.height / 2 + 70);
+      console.log(`[VideoPlayer] No active clips at ${currentTime}ms. Total tracks: ${tracks.length}, Total clips: ${tracks.reduce((sum, t) => sum + t.clips.length, 0)}`);
       return;
     }
 
