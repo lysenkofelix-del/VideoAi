@@ -66,9 +66,13 @@
       "buildResources": "assets"
     },
     "files": [
-      "dist/**/*",
+      "dist/main/**/*",
+      "dist/renderer/**/*",
       "package.json"
     ],
+    "extraMetadata": {
+      "main": "dist/main/main.js"
+    },
     "win": {
       "target": [
         {
