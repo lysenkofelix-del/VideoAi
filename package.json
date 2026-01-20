@@ -76,7 +76,7 @@
     "extraMetadata": {
       "main": "main/main.js"
     },
-    "asar": false,
+    "asar": true,
     "win": {
       "target": [
         {
