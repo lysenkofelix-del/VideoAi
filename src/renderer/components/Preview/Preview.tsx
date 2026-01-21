@@ -9,8 +9,12 @@ import { videoPlayerService } from '../../services/video/VideoPlayerService';
 import './Preview.css';
 
 export const Preview: React.FC = () => {
-  const { cursor, duration, tracks, setCursor } = useTimelineStore();
-  const { mediaItems } = useMediaStore();
+  // Use selectors with shallow compare to avoid unnecessary re-renders
+  const cursor = useTimelineStore((state) => state.cursor);
+  const duration = useTimelineStore((state) => state.duration);
+  const tracks = useTimelineStore((state) => state.tracks);
+  const setCursor = useTimelineStore((state) => state.setCursor);
+  const mediaItems = useMediaStore((state) => state.mediaItems);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSafeZones, setShowSafeZones] = useState(true);
@@ -28,18 +32,6 @@ export const Preview: React.FC = () => {
     tracksRef.current = tracks;
     mediaItemsRef.current = mediaItems;
   }, [tracks, mediaItems]);
-
-  // Create a stable hash of tracks/media to detect actual changes
-  const tracksHash = useMemo(() => {
-    return JSON.stringify(tracks.map(t => ({
-      id: t.id,
-      clips: t.clips.map(c => ({ id: c.id, startTime: c.startTime, duration: c.duration, mediaId: c.mediaId }))
-    })));
-  }, [tracks]);
-
-  const mediaHash = useMemo(() => {
-    return JSON.stringify(mediaItems.map(m => ({ id: m.id, path: m.path, type: m.type })));
-  }, [mediaItems]);
 
   // Sync cursor from timeline to video player service
   // (when user drags timeline cursor, update video player)
@@ -69,16 +61,21 @@ export const Preview: React.FC = () => {
     }
   }, []); // Empty deps - only init once
 
-  // Update timeline when tracks/media/duration actually change
+  // Update timeline when tracks/media/duration change - USE DIRECT DEPS!
   useEffect(() => {
+    console.log('[Preview] Timeline updated - reloading', {
+      tracksCount: tracks.length,
+      clipsCount: tracks.reduce((sum, t) => sum + t.clips.length, 0),
+      mediaCount: mediaItems.length
+    });
     videoPlayerService.loadTimeline(tracks, mediaItems, duration);
     videoPlayerService.setDuration(duration);
 
-    // Mark that we need to render (will be picked up by render useEffect)
-    lastRenderTimeRef.current = 0; // Reset render time to force immediate render
-  }, [tracksHash, mediaHash, duration]); // Trigger when content changes, not just length
+    // Force immediate render (no throttling for timeline changes)
+    videoPlayerService.renderFrame(tracks, mediaItems, cursor);
+  }, [tracks, mediaItems, duration, cursor]); // Direct dependencies - React detects changes
 
-  // Throttled render frame when cursor changes OR when tracks/media change (max 30 FPS)
+  // Throttled render frame when cursor changes (max 30 FPS)
   useEffect(() => {
     if (!isPlaying) {
       // Check if there are any clips - skip rendering if timeline is empty
@@ -116,7 +113,7 @@ export const Preview: React.FC = () => {
         window.clearTimeout(renderTimeoutRef.current);
       }
     };
-  }, [cursor, isPlaying, tracksHash, mediaHash]); // Now includes tracksHash/mediaHash!
+  }, [cursor, isPlaying]); // Only cursor changes
 
   // Render loop when playing (uses ref to avoid re-creating)
   useEffect(() => {

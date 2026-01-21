@@ -61,11 +61,20 @@ export class VideoPlayerService {
   loadTimeline(tracks: Track[], mediaItems: MediaItem[], duration: number): void {
     this.playbackState.duration = duration;
 
+    const totalClips = tracks.reduce((sum, t) => sum + t.clips.length, 0);
+    console.log('[VideoPlayer] loadTimeline called:', {
+      tracks: tracks.length,
+      clips: totalClips,
+      media: mediaItems.length,
+      duration
+    });
+
     // Preload video elements for all clips
     tracks.forEach((track) => {
       track.clips.forEach((clip) => {
         const media = mediaItems.find((m) => m.id === clip.mediaId);
         if (media && media.type === 'video' && !this.videoCache.has(clip.mediaId)) {
+          console.log('[VideoPlayer] Preloading video:', media.path);
           this.preloadVideo(media.path, clip.mediaId);
         }
       });
@@ -186,6 +195,16 @@ export class VideoPlayerService {
 
     // Find all clips at current time (from all tracks)
     const activeClips = this.getActiveClips(tracks, currentTime);
+
+    const totalClips = tracks.reduce((sum, t) => sum + t.clips.length, 0);
+    if (totalClips > 0) {
+      console.log('[VideoPlayer] renderFrame:', {
+        totalClips,
+        activeClips: activeClips.length,
+        currentTime: Math.round(currentTime),
+        media: mediaItems.length
+      });
+    }
 
     if (activeClips.length === 0) {
       // No active clips - show placeholder
