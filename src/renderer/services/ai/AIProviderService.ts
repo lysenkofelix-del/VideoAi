@@ -4,12 +4,17 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-export type AIProvider = 'claude' | 'openai' | 'auto';
+export type AIProvider = 'claude' | 'openai' | 'gemini' | 'custom' | 'auto';
+export type AIProviderType = AIProvider;
 
 export interface AIConfig {
   provider: AIProvider;
   claudeApiKey?: string;
   openaiApiKey?: string;
+  geminiApiKey?: string;
+  customApiKey?: string;
+  customApiUrl?: string;
+  customApiModel?: string;
   model?: string;
 }
 
@@ -52,6 +57,10 @@ export class AIProviderService {
         provider: parsed.aiProvider || 'auto',
         claudeApiKey: parsed.claudeApiKey || null,
         openaiApiKey: parsed.openaiApiKey || null,
+        geminiApiKey: parsed.geminiApiKey || null,
+        customApiKey: parsed.customApiKey || null,
+        customApiUrl: parsed.customApiUrl || null,
+        customApiModel: parsed.customApiModel || null,
         model: parsed.aiModel || null,
       };
 
@@ -69,7 +78,12 @@ export class AIProviderService {
    * Check if any AI provider is available
    */
   isAvailable(): boolean {
-    return !!(this.config.claudeApiKey || this.config.openaiApiKey);
+    return !!(
+      this.config.claudeApiKey ||
+      this.config.openaiApiKey ||
+      this.config.geminiApiKey ||
+      this.config.customApiKey
+    );
   }
 
   /**
@@ -83,20 +97,20 @@ export class AIProviderService {
     // Auto-select based on task and availability
     switch (task) {
       case 'generation':
-        // GPT-5.2 better for creative generation
-        return this.config.openaiApiKey ? 'openai' : 'claude';
+        // GPT-4o/5.2 better for creative generation
+        return this.config.openaiApiKey ? 'openai' : this.config.claudeApiKey ? 'claude' : 'gemini';
 
       case 'analysis':
         // Claude better for structured analysis
-        return this.config.claudeApiKey ? 'claude' : 'openai';
+        return this.config.claudeApiKey ? 'claude' : this.config.openaiApiKey ? 'openai' : 'gemini';
 
       case 'editing':
         // Claude better for precise editing commands
-        return this.config.claudeApiKey ? 'claude' : 'openai';
+        return this.config.claudeApiKey ? 'claude' : this.config.openaiApiKey ? 'openai' : 'gemini';
 
       case 'vision':
-        // GPT-5.2 has better vision capabilities
-        return this.config.openaiApiKey ? 'openai' : 'claude';
+        // Gemini/GPT better for vision
+        return this.config.geminiApiKey ? 'gemini' : this.config.openaiApiKey ? 'openai' : 'claude';
 
       default:
         return this.config.claudeApiKey ? 'claude' : 'openai';
@@ -126,6 +140,45 @@ export class AIProviderService {
     }
 
     throw new Error('No AI provider available. Please configure API keys in Settings.');
+  }
+
+  /**
+   * Generate completion with specified provider (NEW METHOD)
+   */
+  async generateCompletion(
+    prompt: string,
+    options: {
+      provider?: AIProviderType;
+      temperature?: number;
+      maxTokens?: number;
+      systemPrompt?: string;
+    } = {}
+  ): Promise<string> {
+    const provider = options.provider || this.config.provider || 'auto';
+    const actualProvider = provider === 'auto' ? this.getBestProvider('generation') : provider;
+
+    const reqOptions = {
+      temperature: options.temperature ?? 0.7,
+      maxTokens: options.maxTokens ?? 2048,
+    };
+
+    let response: AIResponse;
+
+    switch (actualProvider) {
+      case 'claude':
+        response = await this.sendClaudeRequest(prompt, options.systemPrompt, reqOptions);
+        break;
+      case 'openai':
+        response = await this.sendOpenAIRequest(prompt, options.systemPrompt, reqOptions);
+        break;
+      case 'gemini':
+        response = await this.sendGeminiRequest(prompt, options.systemPrompt, reqOptions);
+        break;
+      default:
+        throw new Error(`Unsupported provider: ${actualProvider}`);
+    }
+
+    return response.text;
   }
 
   /**
@@ -216,6 +269,58 @@ export class AIProviderService {
   }
 
   /**
+   * Send request to Google Gemini
+   */
+  private async sendGeminiRequest(
+    prompt: string,
+    systemPrompt?: string,
+    options: any = {}
+  ): Promise<AIResponse> {
+    if (!this.config.geminiApiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.config.geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: fullPrompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: options.temperature ?? 0.7,
+            maxOutputTokens: options.maxTokens || 2048,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      text: data.candidates[0].content.parts[0].text,
+      provider: 'gemini',
+      model: 'gemini-1.5-flash',
+      usage: {
+        inputTokens: data.usageMetadata?.promptTokenCount || 0,
+        outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
+      },
+    };
+  }
+
+  /**
    * Update configuration
    */
   updateConfig(config: Partial<AIConfig>): void {
@@ -238,6 +343,10 @@ export class AIProviderService {
         aiProvider: this.config.provider,
         claudeApiKey: this.config.claudeApiKey,
         openaiApiKey: this.config.openaiApiKey,
+        geminiApiKey: this.config.geminiApiKey,
+        customApiKey: this.config.customApiKey,
+        customApiUrl: this.config.customApiUrl,
+        customApiModel: this.config.customApiModel,
         aiModel: this.config.model,
       })
     );

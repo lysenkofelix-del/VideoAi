@@ -68,6 +68,38 @@ export const SMART_EFFECTS = {
     params: { startScale: 0.8, endScale: 1, duration: 1000 },
   },
 
+  // 3D Transforms - NEW!
+  rotate3D: {
+    name: 'Вращение 3D',
+    type: 'rotate-3d' as const,
+    params: { rotateX: 0, rotateY: 360, rotateZ: 0, duration: 3000 },
+  },
+  tiltX: {
+    name: 'Наклон по X (вверх-вниз)',
+    type: 'tilt-x' as const,
+    params: { angle: 15, duration: 2000 },
+  },
+  tiltY: {
+    name: 'Наклон по Y (влево-вправо)',
+    type: 'tilt-y' as const,
+    params: { angle: 15, duration: 2000 },
+  },
+  spin: {
+    name: 'Полное вращение',
+    type: 'spin' as const,
+    params: { rotateZ: 360, duration: 2000 },
+  },
+  flip: {
+    name: 'Переворот',
+    type: 'flip' as const,
+    params: { axis: 'y', duration: 800 },
+  },
+  perspective: {
+    name: '3D перспектива',
+    type: 'perspective' as const,
+    params: { distance: 1000, rotateY: 30 },
+  },
+
   // Transforms
   centerCrop: {
     name: 'Центрирование и кадрирование',
@@ -122,16 +154,30 @@ class AISmartEffectsService {
 - Длительность клипа: ${(clipDuration / 1000).toFixed(1)} секунд
 
 Доступные эффекты:
+БАЗОВЫЕ:
 1. roundedCorners - закругленные углы (для стильного вида)
 2. softShadow - мягкая тень (добавляет глубину)
 3. blurredBackground - размытый фон (для изображений 16:9)
-4. kenBurns - Ken Burns эффект (медленный зум для фото)
-5. fadeIn - плавное появление
-6. fadeOut - плавное исчезновение
-7. slideIn - въезд слева/справа
-8. zoomIn - приближение
-9. pictureInPicture - картинка в картинке
-10. vignette - виньетка (затемнение краев)
+4. vignette - виньетка (затемнение краев)
+
+АНИМАЦИЯ:
+5. kenBurns - Ken Burns эффект (медленный зум для фото)
+6. fadeIn - плавное появление
+7. fadeOut - плавное исчезновение
+8. slideIn - въезд слева/справа
+9. zoomIn - приближение
+
+3D ЭФФЕКТЫ (НОВЫЕ):
+10. rotate3D - полное 3D вращение (по всем осям)
+11. tiltX - наклон по оси X (вверх-вниз)
+12. tiltY - наклон по оси Y (влево-вправо)
+13. spin - вращение вокруг оси Z
+14. flip - переворот
+15. perspective - 3D перспектива
+
+КОМПОЗИЦИЯ:
+16. pictureInPicture - картинка в картинке
+17. centerCrop - центрирование и кадрирование
 
 Задача: Выбери 2-4 эффекта которые сделают это профессионально и красиво.
 Верни JSON объект:
