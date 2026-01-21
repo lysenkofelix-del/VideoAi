@@ -4,7 +4,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-export type AIProvider = 'claude' | 'openai' | 'gemini' | 'custom' | 'auto';
+export type AIProvider = 'claude' | 'openai' | 'gemini' | 'sora2' | 'custom' | 'auto';
 export type AIProviderType = AIProvider;
 
 export interface AIConfig {
@@ -12,6 +12,7 @@ export interface AIConfig {
   claudeApiKey?: string;
   openaiApiKey?: string;
   geminiApiKey?: string;
+  sora2ApiKey?: string; // OpenAI API key for Sora2 (video generation)
   customApiKey?: string;
   customApiUrl?: string;
   customApiModel?: string;
@@ -58,6 +59,7 @@ export class AIProviderService {
         claudeApiKey: parsed.claudeApiKey || null,
         openaiApiKey: parsed.openaiApiKey || null,
         geminiApiKey: parsed.geminiApiKey || null,
+        sora2ApiKey: parsed.sora2ApiKey || null,
         customApiKey: parsed.customApiKey || null,
         customApiUrl: parsed.customApiUrl || null,
         customApiModel: parsed.customApiModel || null,
@@ -82,8 +84,22 @@ export class AIProviderService {
       this.config.claudeApiKey ||
       this.config.openaiApiKey ||
       this.config.geminiApiKey ||
+      this.config.sora2ApiKey ||
       this.config.customApiKey
     );
+  }
+
+  /**
+   * Get all available providers
+   */
+  getAvailableProviders(): AIProvider[] {
+    const providers: AIProvider[] = [];
+    if (this.config.claudeApiKey) providers.push('claude');
+    if (this.config.openaiApiKey) providers.push('openai');
+    if (this.config.geminiApiKey) providers.push('gemini');
+    if (this.config.sora2ApiKey) providers.push('sora2');
+    if (this.config.customApiKey) providers.push('custom');
+    return providers;
   }
 
   /**
@@ -173,6 +189,9 @@ export class AIProviderService {
         break;
       case 'gemini':
         response = await this.sendGeminiRequest(prompt, options.systemPrompt, reqOptions);
+        break;
+      case 'sora2':
+        response = await this.sendSora2Request(prompt, options.systemPrompt, reqOptions);
         break;
       default:
         throw new Error(`Unsupported provider: ${actualProvider}`);
@@ -321,6 +340,58 @@ export class AIProviderService {
   }
 
   /**
+   * Send request to Sora2 (OpenAI video generation)
+   * Note: Sora2 is primarily for video generation, but can also be used for text generation
+   */
+  private async sendSora2Request(
+    prompt: string,
+    systemPrompt?: string,
+    options: any = {}
+  ): Promise<AIResponse> {
+    if (!this.config.sora2ApiKey) {
+      throw new Error('Sora2 API key not configured');
+    }
+
+    // Sora2 uses OpenAI's API structure for text generation
+    // For video generation, different endpoints would be used
+    const messages: any[] = [];
+    if (systemPrompt) {
+      messages.push({ role: 'system', content: systemPrompt });
+    }
+    messages.push({ role: 'user', content: prompt });
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.config.sora2ApiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.config.model || 'gpt-4o', // Sora2 uses GPT-4o for text
+        messages,
+        max_tokens: options.maxTokens || 2048,
+        temperature: options.temperature !== undefined ? options.temperature : 0.7,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Sora2 API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      text: data.choices[0].message.content,
+      provider: 'sora2',
+      model: data.model,
+      usage: {
+        inputTokens: data.usage.prompt_tokens,
+        outputTokens: data.usage.completion_tokens,
+      },
+    };
+  }
+
+  /**
    * Update configuration
    */
   updateConfig(config: Partial<AIConfig>): void {
@@ -344,6 +415,7 @@ export class AIProviderService {
         claudeApiKey: this.config.claudeApiKey,
         openaiApiKey: this.config.openaiApiKey,
         geminiApiKey: this.config.geminiApiKey,
+        sora2ApiKey: this.config.sora2ApiKey,
         customApiKey: this.config.customApiKey,
         customApiUrl: this.config.customApiUrl,
         customApiModel: this.config.customApiModel,

@@ -1,5 +1,5 @@
 /**
- * First Run Dialog - Welcome screen with API key setup
+ * First Run Dialog - Welcome screen with multi-AI setup
  */
 
 import React, { useState } from 'react';
@@ -9,23 +9,48 @@ interface FirstRunDialogProps {
   onComplete: (skipAI: boolean) => void;
 }
 
+interface AIKeys {
+  claudeApiKey: string;
+  openaiApiKey: string;
+  sora2ApiKey: string;
+  geminiApiKey: string;
+}
+
 export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) => {
   const [step, setStep] = useState(1);
-  const [apiKey, setApiKey] = useState('');
-  const [showApiKey, setShowApiKey] = useState(false);
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+  const [apiKeys, setApiKeys] = useState<AIKeys>({
+    claudeApiKey: '',
+    openaiApiKey: '',
+    sora2ApiKey: '',
+    geminiApiKey: '',
+  });
 
   const handleSaveAndContinue = () => {
-    if (apiKey.trim()) {
-      const settings = {
-        claudeApiKey: apiKey,
-        autoSaveInterval: 5,
-        theme: 'dark',
-        defaultResolution: '1080p',
-        defaultFrameRate: 30,
-      };
-      localStorage.setItem('app-settings', JSON.stringify(settings));
-    }
+    // Save all configured API keys
+    const availableProviders: string[] = [];
+    if (apiKeys.claudeApiKey.trim()) availableProviders.push('claude');
+    if (apiKeys.openaiApiKey.trim()) availableProviders.push('openai');
+    if (apiKeys.sora2ApiKey.trim()) availableProviders.push('sora2');
+    if (apiKeys.geminiApiKey.trim()) availableProviders.push('gemini');
+
+    const settings = {
+      claudeApiKey: apiKeys.claudeApiKey.trim() || undefined,
+      openaiApiKey: apiKeys.openaiApiKey.trim() || undefined,
+      sora2ApiKey: apiKeys.sora2ApiKey.trim() || undefined,
+      geminiApiKey: apiKeys.geminiApiKey.trim() || undefined,
+      aiProvider: 'auto', // Auto-select best provider for each task
+      autoSaveInterval: 5,
+      theme: 'dark',
+      defaultResolution: '1080p',
+      defaultFrameRate: 30,
+    };
+
+    localStorage.setItem('app-settings', JSON.stringify(settings));
     localStorage.setItem('first-run-completed', 'true');
+
+    console.log(`✅ Configured ${availableProviders.length}/4 AI providers:`, availableProviders);
+
     onComplete(false);
   };
 
@@ -33,6 +58,16 @@ export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) =>
     localStorage.setItem('first-run-completed', 'true');
     onComplete(true);
   };
+
+  const toggleKeyVisibility = (key: string) => {
+    setShowKeys((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const updateKey = (key: keyof AIKeys, value: string) => {
+    setApiKeys((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const hasAnyKey = Object.values(apiKeys).some((key) => key.trim() !== '');
 
   return (
     <div className="first-run-overlay">
@@ -44,7 +79,7 @@ export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) =>
                 🎬 Добро пожаловать в AI Video Editor PRO
               </h1>
               <p className="first-run-dialog__subtitle">
-                Профессиональный видеоредактор с AI-суперспособностями
+                Профессиональный видеоредактор с командой AI-специалистов
               </p>
             </div>
 
@@ -60,25 +95,25 @@ export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) =>
 
                 <div className="welcome-feature">
                   <div className="welcome-feature__icon">🤖</div>
-                  <h3>AI Ассистент</h3>
+                  <h3>Команда AI Ассистентов</h3>
                   <p>
-                    Редактируйте видео естественным языком: "Вставь #3 после #1"
+                    4 специализированных AI работают вместе для профессионального монтажа
                   </p>
                 </div>
 
                 <div className="welcome-feature">
-                  <div className="welcome-feature__icon">🔢</div>
-                  <h3>Умная нумерация</h3>
+                  <div className="welcome-feature__icon">🎨</div>
+                  <h3>AI Профессиональная обработка</h3>
                   <p>
-                    Каждый файл получает номер (#001, #002) для удобной работы с AI
+                    3D эффекты, умные переходы, автоматическая композиция
                   </p>
                 </div>
 
                 <div className="welcome-feature">
                   <div className="welcome-feature__icon">💰</div>
-                  <h3>Бесплатно навсегда</h3>
+                  <h3>Гибкая настройка</h3>
                   <p>
-                    Open source. Без подписок. Все функции доступны
+                    Используйте 1, 2, 3 или все 4 AI - система адаптируется автоматически
                   </p>
                 </div>
               </div>
@@ -86,7 +121,7 @@ export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) =>
 
             <div className="first-run-dialog__footer">
               <button className="btn btn--primary btn--large" onClick={() => setStep(2)}>
-                Начать настройку →
+                Настроить AI команду →
               </button>
             </div>
           </>
@@ -95,70 +130,178 @@ export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) =>
         {step === 2 && (
           <>
             <div className="first-run-dialog__header">
-              <h1 className="first-run-dialog__title">🤖 Настройка AI</h1>
+              <h1 className="first-run-dialog__title">🤖 Настройка AI Команды</h1>
               <p className="first-run-dialog__subtitle">
-                Для работы AI-ассистента нужен API ключ
+                Каждый AI выполняет свою роль. Настройте минимум 1 AI для работы.
               </p>
             </div>
 
             <div className="first-run-dialog__content">
-              <div className="ai-setup">
-                <div className="ai-recommendation">
-                  <h3>Рекомендуемый сервис:</h3>
-                  <div className="ai-service-card">
-                    <div className="ai-service-card__header">
-                      <strong>Anthropic Claude API</strong>
-                      <span className="badge">Рекомендуется</span>
-                    </div>
-                    <p className="ai-service-card__description">
-                      Claude 3.5 Sonnet - лучшая модель для понимания команд редактирования
-                    </p>
-                    <ul className="ai-service-card__features">
-                      <li>✅ Отличное понимание естественного языка</li>
-                      <li>✅ Большой контекст (200K токенов)</li>
-                      <li>✅ Точное выполнение команд</li>
-                      <li>✅ Доступная цена: $3/$15 за 1M токенов</li>
-                    </ul>
-                    <a
-                      href="https://console.anthropic.com/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ai-service-card__link"
-                    >
-                      Получить бесплатный API ключ →
-                    </a>
+              <div className="ai-setup-multi">
+                {/* Claude - Technical Director */}
+                <div className="ai-provider-card">
+                  <div className="ai-provider-card__header">
+                    <strong>🧠 Claude 3.5 Sonnet</strong>
+                    <span className="badge badge--technical">Технический директор</span>
                   </div>
-                </div>
-
-                <div className="api-key-input-section">
-                  <label className="api-key-label">
-                    Введите Claude API Key (начинается с sk-ant-api...)
-                  </label>
+                  <p className="ai-provider-card__role">
+                    <strong>Роль:</strong> Точные параметры, структурный анализ, финальное ревью
+                  </p>
+                  <ul className="ai-provider-card__features">
+                    <li>✅ Лучшее понимание команд редактирования</li>
+                    <li>✅ Точные технические расчеты</li>
+                    <li>✅ Большой контекст (200K токенов)</li>
+                  </ul>
                   <div className="api-key-input-group">
                     <input
-                      type={showApiKey ? 'text' : 'password'}
+                      type={showKeys.claude ? 'text' : 'password'}
                       className="api-key-input"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
+                      value={apiKeys.claudeApiKey}
+                      onChange={(e) => updateKey('claudeApiKey', e.target.value)}
                       placeholder="sk-ant-api03-..."
                     />
                     <button
                       className="api-key-toggle"
-                      onClick={() => setShowApiKey(!showApiKey)}
+                      onClick={() => toggleKeyVisibility('claude')}
                     >
-                      {showApiKey ? '🙈' : '👁️'}
+                      {showKeys.claude ? '🙈' : '👁️'}
                     </button>
                   </div>
-                  <p className="api-key-hint">
-                    🔐 Ключ хранится локально и используется только для AI команд
+                  <a
+                    href="https://console.anthropic.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-provider-card__link"
+                  >
+                    Получить API ключ →
+                  </a>
+                </div>
+
+                {/* ChatGPT - Creative Director */}
+                <div className="ai-provider-card">
+                  <div className="ai-provider-card__header">
+                    <strong>💡 ChatGPT (GPT-5.2)</strong>
+                    <span className="badge badge--creative">Креативный директор</span>
+                  </div>
+                  <p className="ai-provider-card__role">
+                    <strong>Роль:</strong> Креативные идеи, стили, анимации
                   </p>
+                  <ul className="ai-provider-card__features">
+                    <li>✅ Лучший для генерации креативных концепций</li>
+                    <li>✅ Отличные анимации и эффекты</li>
+                    <li>✅ GPT-5.2 (2026) - новейшая модель</li>
+                  </ul>
+                  <div className="api-key-input-group">
+                    <input
+                      type={showKeys.openai ? 'text' : 'password'}
+                      className="api-key-input"
+                      value={apiKeys.openaiApiKey}
+                      onChange={(e) => updateKey('openaiApiKey', e.target.value)}
+                      placeholder="sk-proj-..."
+                    />
+                    <button
+                      className="api-key-toggle"
+                      onClick={() => toggleKeyVisibility('openai')}
+                    >
+                      {showKeys.openai ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-provider-card__link"
+                  >
+                    Получить API ключ →
+                  </a>
+                </div>
+
+                {/* Sora2 - Video Generator */}
+                <div className="ai-provider-card">
+                  <div className="ai-provider-card__header">
+                    <strong>🎥 Sora2</strong>
+                    <span className="badge badge--video">Видео генератор</span>
+                  </div>
+                  <p className="ai-provider-card__role">
+                    <strong>Роль:</strong> AI генерация видео из изображений, создание движения
+                  </p>
+                  <ul className="ai-provider-card__features">
+                    <li>✅ Генерация AI видео из фото</li>
+                    <li>✅ Создание динамических эффектов</li>
+                    <li>✅ Text-to-video и image-to-video</li>
+                  </ul>
+                  <div className="api-key-input-group">
+                    <input
+                      type={showKeys.sora2 ? 'text' : 'password'}
+                      className="api-key-input"
+                      value={apiKeys.sora2ApiKey}
+                      onChange={(e) => updateKey('sora2ApiKey', e.target.value)}
+                      placeholder="sk-proj-..."
+                    />
+                    <button
+                      className="api-key-toggle"
+                      onClick={() => toggleKeyVisibility('sora2')}
+                    >
+                      {showKeys.sora2 ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                  <a
+                    href="https://platform.openai.com/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-provider-card__link"
+                  >
+                    Получить API ключ (OpenAI) →
+                  </a>
+                </div>
+
+                {/* Gemini - Compositor */}
+                <div className="ai-provider-card">
+                  <div className="ai-provider-card__header">
+                    <strong>🎨 Gemini 1.5 Flash</strong>
+                    <span className="badge badge--compositor">Композитор</span>
+                  </div>
+                  <p className="ai-provider-card__role">
+                    <strong>Роль:</strong> Визуальная компоновка, расположение элементов
+                  </p>
+                  <ul className="ai-provider-card__features">
+                    <li>✅ Отличное визуальное восприятие</li>
+                    <li>✅ Быстрый и бюджетный</li>
+                    <li>✅ Хорош для композиции сцен</li>
+                  </ul>
+                  <div className="api-key-input-group">
+                    <input
+                      type={showKeys.gemini ? 'text' : 'password'}
+                      className="api-key-input"
+                      value={apiKeys.geminiApiKey}
+                      onChange={(e) => updateKey('geminiApiKey', e.target.value)}
+                      placeholder="AIza..."
+                    />
+                    <button
+                      className="api-key-toggle"
+                      onClick={() => toggleKeyVisibility('gemini')}
+                    >
+                      {showKeys.gemini ? '🙈' : '👁️'}
+                    </button>
+                  </div>
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-provider-card__link"
+                  >
+                    Получить API ключ →
+                  </a>
                 </div>
 
                 <div className="skip-option">
-                  <strong>Хотите использовать без AI?</strong>
+                  <strong>⚙️ Умное распределение ролей</strong>
                   <p>
-                    Все функции редактирования будут доступны. AI-ассистента можно
-                    подключить позже в настройках.
+                    Если вы настроили 3 из 4 AI - система автоматически перераспределит роли.
+                    Даже с 1 AI все функции будут работать.
+                  </p>
+                  <p style={{ marginTop: '8px', fontSize: '14px', color: '#888' }}>
+                    🔐 Все ключи хранятся только локально на вашем компьютере
                   </p>
                 </div>
               </div>
@@ -171,9 +314,9 @@ export const FirstRunDialog: React.FC<FirstRunDialogProps> = ({ onComplete }) =>
               <button
                 className="btn btn--primary btn--large"
                 onClick={handleSaveAndContinue}
-                disabled={!apiKey.trim()}
+                disabled={!hasAnyKey}
               >
-                Сохранить и продолжить →
+                Продолжить ({Object.values(apiKeys).filter((k) => k.trim()).length}/4 AI) →
               </button>
             </div>
           </>
