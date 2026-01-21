@@ -6,6 +6,43 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { MediaItem, MediaType, MediaSearchQuery } from '@shared/types';
 
+/**
+ * Get media duration using HTML5 media element
+ */
+async function getMediaDuration(filePath: string, type: 'video' | 'audio'): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const element = type === 'video'
+      ? document.createElement('video')
+      : document.createElement('audio');
+
+    element.preload = 'metadata';
+
+    element.onloadedmetadata = () => {
+      const durationMs = Math.floor(element.duration * 1000);
+      element.remove(); // Clean up
+
+      if (isFinite(durationMs) && durationMs > 0) {
+        resolve(durationMs);
+      } else {
+        reject(new Error('Invalid duration'));
+      }
+    };
+
+    element.onerror = () => {
+      element.remove();
+      reject(new Error('Failed to load media'));
+    };
+
+    // Set timeout to prevent hanging
+    setTimeout(() => {
+      element.remove();
+      reject(new Error('Timeout loading media'));
+    }, 10000); // 10 second timeout
+
+    element.src = filePath;
+  });
+}
+
 interface MediaState {
   mediaItems: MediaItem[];
   selectedMedia: string[];
@@ -52,13 +89,19 @@ export const useMediaStore = create<MediaState>((set, get) => ({
         thumbnail = filePath; // Use file path as placeholder
       }
 
-      // Get video metadata if it's a video
+      // Get video/audio duration using HTML5 media element
       let duration: number | undefined;
-      if (type === 'video') {
-        const videoMetadata = await window.electronAPI.getVideoMetadata(filePath);
-        if (videoMetadata.success && videoMetadata.data) {
-          duration = videoMetadata.data.duration * 1000; // Convert to ms
+      if (type === 'video' || type === 'audio') {
+        try {
+          duration = await getMediaDuration(filePath, type);
+        } catch (error) {
+          console.error('Failed to get media duration:', error);
+          // Fallback to default duration
+          duration = type === 'image' ? 5000 : undefined;
         }
+      } else if (type === 'image') {
+        // Images default to 5 seconds
+        duration = 5000;
       }
 
       const mediaItem: MediaItem = {

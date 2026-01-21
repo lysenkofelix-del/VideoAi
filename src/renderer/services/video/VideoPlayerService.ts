@@ -73,6 +73,13 @@ export class VideoPlayerService {
   }
 
   /**
+   * Set duration
+   */
+  setDuration(duration: number): void {
+    this.playbackState.duration = duration;
+  }
+
+  /**
    * Preload video element
    */
   private preloadVideo(path: string, mediaId: string): void {

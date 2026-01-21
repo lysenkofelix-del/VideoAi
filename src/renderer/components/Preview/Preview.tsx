@@ -21,6 +21,7 @@ export const Preview: React.FC = () => {
   // Refs to access current values in render loop (avoid stale closures)
   const tracksRef = useRef(tracks);
   const mediaItemsRef = useRef(mediaItems);
+  const lastCursorUpdateFromService = useRef<number>(0);
 
   // Keep refs in sync with current values
   useEffect(() => {
@@ -28,14 +29,25 @@ export const Preview: React.FC = () => {
     mediaItemsRef.current = mediaItems;
   }, [tracks, mediaItems]);
 
+  // Sync cursor from timeline to video player service
+  // (when user drags timeline cursor, update video player)
+  useEffect(() => {
+    const now = Date.now();
+    // Only sync if cursor changed from user interaction (not from video player)
+    if (now - lastCursorUpdateFromService.current > 100) {
+      videoPlayerService.seek(cursor);
+    }
+  }, [cursor]);
+
   // Initialize video player (only once)
   useEffect(() => {
     if (canvasRef.current) {
       videoPlayerService.init(canvasRef.current);
       videoPlayerService.loadTimeline(tracks, mediaItems, duration);
 
-      // Subscribe to time updates
+      // Subscribe to time updates from video player
       const unsubscribe = videoPlayerService.onTimeUpdate((time) => {
+        lastCursorUpdateFromService.current = Date.now();
         setCursor(time);
       });
 
@@ -48,6 +60,7 @@ export const Preview: React.FC = () => {
   // Update timeline when tracks/media change (not on every render)
   useEffect(() => {
     videoPlayerService.loadTimeline(tracks, mediaItems, duration);
+    videoPlayerService.setDuration(duration);
   }, [tracks.length, mediaItems.length, duration]); // Only when count changes
 
   // Throttled render frame when cursor changes (max 30 FPS)
@@ -77,7 +90,7 @@ export const Preview: React.FC = () => {
           window.clearTimeout(renderTimeoutRef.current);
         }
         renderTimeoutRef.current = window.setTimeout(() => {
-          videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, Date.now());
+          videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
           lastRenderTimeRef.current = Date.now();
         }, 33 - timeSinceLastRender);
       }

@@ -35,6 +35,42 @@ export const AdvancedLayout: React.FC = () => {
     }
   }, []);
 
+  // Menu handlers
+  const handleFileMenu = () => {
+    // TODO: Implement File menu (New, Open, Save, etc.)
+    console.log('File menu clicked');
+  };
+
+  const handleEditMenu = () => {
+    // TODO: Implement Edit menu (Undo, Redo, Cut, Copy, Paste)
+    console.log('Edit menu clicked');
+  };
+
+  const handleClipMenu = () => {
+    // TODO: Implement Clip menu (Speed, Transform, Audio)
+    console.log('Clip menu clicked');
+  };
+
+  const handleSequenceMenu = () => {
+    // TODO: Implement Sequence menu (Settings, Render)
+    console.log('Sequence menu clicked');
+  };
+
+  const handleEffectsMenu = () => {
+    // Switch to effects workspace
+    loadWorkspace('effects');
+  };
+
+  const handleExportMenu = async () => {
+    // TODO: Implement export dialog
+    alert('Функция экспорта будет доступна в следующей версии.\nПока используйте FFmpeg напрямую.');
+  };
+
+  const handleHelpMenu = () => {
+    // Open API keys guide
+    alert('📖 Помощь:\n\n1. Инструкция по API ключам: смотрите файл API_KEYS_GUIDE.md\n2. GitHub: https://github.com/yourusername/VideoAI\n3. Документация Claude: docs.anthropic.com\n4. Документация OpenAI: platform.openai.com/docs');
+  };
+
   // Workspace presets
   const loadWorkspace = (ws: Workspace) => {
     setWorkspace(ws);
@@ -69,18 +105,18 @@ export const AdvancedLayout: React.FC = () => {
 
           {/* Main Menu */}
           <nav className="main-menu">
-            <button className="menu__item">File</button>
-            <button className="menu__item">Edit</button>
-            <button className="menu__item">Clip</button>
-            <button className="menu__item">Sequence</button>
-            <button className="menu__item">Effects</button>
+            <button className="menu__item" onClick={handleFileMenu}>File</button>
+            <button className="menu__item" onClick={handleEditMenu}>Edit</button>
+            <button className="menu__item" onClick={handleClipMenu}>Clip</button>
+            <button className="menu__item" onClick={handleSequenceMenu}>Sequence</button>
+            <button className="menu__item" onClick={handleEffectsMenu}>Effects</button>
             <AIMenu
               onOpenAssistant={() => {
                 setRightPanelTab('ai');
               }}
             />
-            <button className="menu__item">Export</button>
-            <button className="menu__item">Help</button>
+            <button className="menu__item" onClick={handleExportMenu}>Export</button>
+            <button className="menu__item" onClick={handleHelpMenu}>Help</button>
           </nav>
         </div>
 
