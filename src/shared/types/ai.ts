@@ -18,6 +18,7 @@ export interface AICommand {
   mediaReferences: number[];     // Номера медиафайлов
   parameters: Record<string, any>;
   timeRange?: { start: number; end: number };
+  description?: string;          // Описание намерения пользователя
 }
 
 export interface ChatMessage {

@@ -10,12 +10,17 @@ import { keyframeService } from '../animation/KeyframeService';
 import { subtitleService } from './SubtitleService';
 import { aiTransitionsService } from './AITransitionsService';
 import { aiContentService } from './AIContentService';
+import { aiSmartEffectsService, ProcessingContext } from './AISmartEffectsService';
 
 export interface ExecutionResult {
   success: boolean;
   message: string;
   affectedClips?: string[];
   errors?: string[];
+  addedClips?: number;
+  modifiedClips?: number;
+  deletedClips?: number;
+  addedEffects?: number;
 }
 
 export class AICommandExecutor {
@@ -120,10 +125,11 @@ export class AICommandExecutor {
    * Execute INSERT command
    */
   private async executeInsert(command: AICommand): Promise<ExecutionResult> {
-    const { addClip } = useTimelineStore.getState();
+    const { addClip, updateClip, tracks } = useTimelineStore.getState();
     const { getMediaByNumber } = useMediaStore.getState();
 
     const insertedClips: string[] = [];
+    let totalEffectsAdded = 0;
 
     for (const mediaNumber of command.mediaReferences) {
       const media = getMediaByNumber(mediaNumber);
@@ -138,6 +144,7 @@ export class AICommandExecutor {
       const position = command.parameters.position || 0;
       const trackId = command.parameters.trackId || 'video-1';
 
+      // Create clip
       const clip = addClip({
         mediaId: media.id,
         mediaNumber: media.displayNumber,
@@ -149,12 +156,63 @@ export class AICommandExecutor {
       });
 
       insertedClips.push(clip.id);
+
+      // Check if smart effects should be applied
+      const applySmartEffects = command.parameters.smart === true ||
+        command.parameters.professional === true ||
+        command.parameters.style === 'professional' ||
+        /красиво|профессионально|стильно|элегантно/.test(command.description || '');
+
+      if (applySmartEffects) {
+        // Determine position in timeline
+        let timelinePosition: ProcessingContext['position'] = 'middle';
+        if (position === 0) {
+          timelinePosition = 'intro';
+        } else if (tracks.length > 0) {
+          const maxTime = Math.max(...tracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)));
+          if (position >= maxTime - 5000) {
+            timelinePosition = 'outro';
+          }
+        }
+
+        // Create processing context
+        const context: ProcessingContext = {
+          mediaType: media.type,
+          userIntent: command.description || 'вставить медиа',
+          clipDuration: media.duration || 5000,
+          position: timelinePosition,
+        };
+
+        console.log(`🎨 Applying smart effects to clip #${mediaNumber}...`);
+        console.log(`   Context: ${JSON.stringify(context)}`);
+
+        // Apply smart effects
+        try {
+          const updatedClip = await aiSmartEffectsService.applySmartEffects(
+            clip,
+            media,
+            context
+          );
+
+          // Update clip with effects
+          updateClip(clip.id, {
+            effects: updatedClip.effects,
+          });
+
+          totalEffectsAdded += updatedClip.effects.length;
+          console.log(`   ✅ Added ${updatedClip.effects.length} effects`);
+        } catch (error) {
+          console.error(`   ❌ Failed to apply smart effects:`, error);
+        }
+      }
     }
 
     return {
       success: true,
-      message: `Inserted ${insertedClips.length} clips`,
+      message: `Inserted ${insertedClips.length} clips${totalEffectsAdded > 0 ? ` with ${totalEffectsAdded} smart effects` : ''}`,
       affectedClips: insertedClips,
+      addedClips: insertedClips.length,
+      addedEffects: totalEffectsAdded,
     };
   }
 

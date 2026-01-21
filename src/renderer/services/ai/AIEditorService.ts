@@ -86,7 +86,7 @@ export class AIEditorService {
       .join('\n');
 
     return `
-Ты — AI-ассистент видеоредактора. Твоя задача — понимать команды пользователя
+Ты — AI-ассистент профессионального видеоредактора. Твоя задача — понимать команды пользователя
 и переводить их в структурированные инструкции для монтажа.
 
 ДОСТУПНЫЕ МЕДИАФАЙЛЫ:
@@ -100,12 +100,28 @@ ${mediaList}
 ДОСТУПНЫЕ ЭФФЕКТЫ: ${context.availableEffects.join(', ')}
 ДОСТУПНЫЕ ПЕРЕХОДЫ: ${context.availableTransitions.join(', ')}
 
+ПРОФЕССИОНАЛЬНАЯ ОБРАБОТКА:
+Когда пользователь говорит:
+- "красиво" / "профессионально" / "стильно" / "элегантно"
+- "сделай красивое интро/аутро"
+- "добавь с эффектами"
+Автоматически добавляй параметр "smart": true или "professional": true
+
+Это включит:
+- Ken Burns эффект для фотографий (медленный зум)
+- Fade in/out переходы
+- Мягкие тени и виньетка
+- Закругленные углы для современного стиля
+- Размытый фон для изображений
+- Плавные анимации
+
 ПРАВИЛА:
 1. Всегда ссылайся на медиафайлы по их НОМЕРАМ (#1, #2, и т.д.)
 2. Время указывай в формате MM:SS или секундах
 3. Если команда неоднозначна — запроси уточнение
 4. Перед деструктивными действиями (удаление) — проси подтверждение
 5. Предлагай улучшения, если видишь возможность
+6. При вставке медиа всегда думай: нужны ли эффекты для профессионального вида?
 
 ФОРМАТ ОТВЕТА:
 Верни JSON объект с полями:
@@ -116,11 +132,24 @@ ${mediaList}
     {
       "action": "insert|trim|transition|effect|delete|move",
       "target": [номера медиафайлов],
-      "params": {...}
+      "params": {
+        "smart": true,  // если нужна профессиональная обработка
+        "professional": true,
+        "style": "professional|minimal|elegant|dynamic",
+        ...другие параметры
+      },
+      "description": "краткое описание намерения пользователя"
     }
   ],
   "explanation": "что будет сделано"
 }
+
+ПРИМЕРЫ:
+Запрос: "Вставь фото #3 красиво"
+Ответ: {"actions": [{"action": "insert", "target": [3], "params": {"smart": true}, "description": "вставить красиво"}]}
+
+Запрос: "Добавь видео #1 в начало с эффектами"
+Ответ: {"actions": [{"action": "insert", "target": [1], "params": {"position": 0, "professional": true}, "description": "добавить с эффектами"}]}
     `.trim();
   }
 
@@ -129,6 +158,7 @@ ${mediaList}
    */
   private mockParseCommand(input: string): AICommand[] {
     const commands: AICommand[] = [];
+    const inputLower = input.toLowerCase();
 
     // Extract media numbers (e.g., #3, #5)
     const numberMatches = input.match(/#(\d+)/g);
@@ -136,30 +166,37 @@ ${mediaList}
       ? numberMatches.map((m) => parseInt(m.substring(1)))
       : [];
 
+    // Check for professional processing keywords
+    const isProfessional = /красиво|профессионально|стильно|элегантно|с эффектами|крутое|интро|аутро/.test(inputLower);
+
     // Detect command type
-    if (input.includes('вставь') || input.includes('размести')) {
+    if (inputLower.includes('вставь') || inputLower.includes('размести') || inputLower.includes('добавь')) {
       commands.push({
         type: 'insert',
         mediaReferences: mediaNumbers,
-        parameters: {},
+        parameters: isProfessional ? { smart: true, professional: true } : {},
+        description: input,
       });
-    } else if (input.includes('удали') || input.includes('убери')) {
+    } else if (inputLower.includes('удали') || inputLower.includes('убери')) {
       commands.push({
         type: 'delete',
         mediaReferences: mediaNumbers,
         parameters: {},
+        description: input,
       });
-    } else if (input.includes('переход')) {
+    } else if (inputLower.includes('переход')) {
       commands.push({
         type: 'transition',
         mediaReferences: mediaNumbers,
         parameters: { type: 'dissolve', duration: 500 },
+        description: input,
       });
-    } else if (input.includes('эффект')) {
+    } else if (inputLower.includes('эффект')) {
       commands.push({
         type: 'effect',
         mediaReferences: mediaNumbers,
         parameters: {},
+        description: input,
       });
     }
 
