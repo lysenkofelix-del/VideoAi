@@ -19,29 +19,37 @@ export const Preview: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showSafeZones, setShowSafeZones] = useState(true);
   const [quality, setQuality] = useState<'full' | 'half' | 'quarter'>('full');
-  const renderTimeoutRef = useRef<number | null>(null);
-  const lastRenderTimeRef = useRef<number>(0);
 
-  // Refs to access current values in render loop (avoid stale closures)
+  // Refs to access current values without triggering re-renders
   const tracksRef = useRef(tracks);
   const mediaItemsRef = useRef(mediaItems);
+  const cursorRef = useRef(cursor);
+  const isPlayingRef = useRef(isPlaying);
   const lastCursorUpdateFromService = useRef<number>(0);
+  const renderScheduledRef = useRef(false);
 
-  // Keep refs in sync with current values
+  // Keep refs in sync
   useEffect(() => {
     tracksRef.current = tracks;
     mediaItemsRef.current = mediaItems;
-  }, [tracks, mediaItems]);
+    cursorRef.current = cursor;
+    isPlayingRef.current = isPlaying;
+  }, [tracks, mediaItems, cursor, isPlaying]);
 
-  // Sync cursor from timeline to video player service
-  // (when user drags timeline cursor, update video player)
-  useEffect(() => {
-    const now = Date.now();
-    // Only sync if cursor changed from user interaction (not from video player)
-    if (now - lastCursorUpdateFromService.current > 100) {
-      videoPlayerService.seek(cursor);
-    }
-  }, [cursor]);
+  // Centralized render function - SINGLE source of truth
+  const scheduleRender = useCallback(() => {
+    if (renderScheduledRef.current) return;
+
+    renderScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      renderScheduledRef.current = false;
+      videoPlayerService.renderFrame(
+        tracksRef.current,
+        mediaItemsRef.current,
+        cursorRef.current
+      );
+    });
+  }, []);
 
   // Initialize video player (only once)
   useEffect(() => {
@@ -55,72 +63,46 @@ export const Preview: React.FC = () => {
         setCursor(time);
       });
 
+      // Initial render
+      scheduleRender();
+
       return () => {
         unsubscribe();
       };
     }
-  }, []); // Empty deps - only init once
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update timeline when tracks/media/duration change (NOT cursor!)
+  // Sync cursor to video player service (when user drags timeline)
   useEffect(() => {
-    console.log('[Preview] Timeline content changed - reloading', {
-      tracksCount: tracks.length,
-      clipsCount: tracks.reduce((sum, t) => sum + t.clips.length, 0),
-      mediaCount: mediaItems.length
-    });
-    videoPlayerService.loadTimeline(tracks, mediaItems, duration);
-    videoPlayerService.setDuration(duration);
-
-    // Reset last render time to force immediate next render
-    lastRenderTimeRef.current = 0;
-  }, [tracks, mediaItems, duration]); // NO cursor here! Only content changes
-
-  // Render frame when cursor changes or when paused (throttled to 30 FPS)
-  useEffect(() => {
-    if (!isPlaying) {
-      const hasClips = tracks.some(track => track.clips.length > 0);
-
-      if (!hasClips) {
-        // Empty timeline - render once
-        if (renderTimeoutRef.current) {
-          window.clearTimeout(renderTimeoutRef.current);
-        }
-        videoPlayerService.renderFrame(tracks, mediaItems, cursor);
-        return;
-      }
-
-      const now = Date.now();
-      const timeSinceLastRender = now - lastRenderTimeRef.current;
-
-      if (timeSinceLastRender >= 33) { // ~30 FPS max
-        videoPlayerService.renderFrame(tracks, mediaItems, cursor);
-        lastRenderTimeRef.current = now;
-      } else {
-        // Debounce - schedule render for later
-        if (renderTimeoutRef.current) {
-          window.clearTimeout(renderTimeoutRef.current);
-        }
-        renderTimeoutRef.current = window.setTimeout(() => {
-          videoPlayerService.renderFrame(tracks, mediaItems, cursor);
-          lastRenderTimeRef.current = Date.now();
-        }, 33 - timeSinceLastRender);
+    const now = Date.now();
+    if (now - lastCursorUpdateFromService.current > 100) {
+      videoPlayerService.seek(cursor);
+      if (!isPlaying) {
+        scheduleRender();
       }
     }
+  }, [cursor, isPlaying, scheduleRender]);
 
-    return () => {
-      if (renderTimeoutRef.current) {
-        window.clearTimeout(renderTimeoutRef.current);
-      }
-    };
-  }, [cursor, isPlaying, tracks, mediaItems]); // Re-render when cursor OR content changes
+  // Reload timeline when tracks/media/duration change
+  useEffect(() => {
+    console.log('[Preview] Timeline changed - reloading');
+    videoPlayerService.loadTimeline(tracks, mediaItems, duration);
+    videoPlayerService.setDuration(duration);
+    scheduleRender();
+  }, [tracks, mediaItems, duration, scheduleRender]);
 
-  // Render loop when playing (uses ref to avoid re-creating)
+  // Playback loop
   useEffect(() => {
     if (isPlaying) {
       let animationId: number;
       const renderLoop = () => {
-        // Use refs to get current values (avoid stale closure)
-        videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+        if (!isPlayingRef.current) return;
+
+        videoPlayerService.renderFrame(
+          tracksRef.current,
+          mediaItemsRef.current,
+          cursorRef.current
+        );
         animationId = requestAnimationFrame(renderLoop);
       };
       animationId = requestAnimationFrame(renderLoop);
@@ -131,7 +113,7 @@ export const Preview: React.FC = () => {
         }
       };
     }
-  }, [isPlaying, cursor]); // Need cursor for current playback position
+  }, [isPlaying]);
 
   const formatTime = (ms: number): string => {
     const totalSeconds = Math.floor(ms / 1000);
