@@ -29,6 +29,18 @@ export const Preview: React.FC = () => {
     mediaItemsRef.current = mediaItems;
   }, [tracks, mediaItems]);
 
+  // Create a stable hash of tracks/media to detect actual changes
+  const tracksHash = useMemo(() => {
+    return JSON.stringify(tracks.map(t => ({
+      id: t.id,
+      clips: t.clips.map(c => ({ id: c.id, startTime: c.startTime, duration: c.duration, mediaId: c.mediaId }))
+    })));
+  }, [tracks]);
+
+  const mediaHash = useMemo(() => {
+    return JSON.stringify(mediaItems.map(m => ({ id: m.id, path: m.path, type: m.type })));
+  }, [mediaItems]);
+
   // Sync cursor from timeline to video player service
   // (when user drags timeline cursor, update video player)
   useEffect(() => {
@@ -57,13 +69,16 @@ export const Preview: React.FC = () => {
     }
   }, []); // Empty deps - only init once
 
-  // Update timeline when tracks/media change (not on every render)
+  // Update timeline when tracks/media/duration actually change
   useEffect(() => {
     videoPlayerService.loadTimeline(tracks, mediaItems, duration);
     videoPlayerService.setDuration(duration);
-  }, [tracks.length, mediaItems.length, duration]); // Only when count changes
 
-  // Throttled render frame when cursor changes (max 30 FPS)
+    // Mark that we need to render (will be picked up by render useEffect)
+    lastRenderTimeRef.current = 0; // Reset render time to force immediate render
+  }, [tracksHash, mediaHash, duration]); // Trigger when content changes, not just length
+
+  // Throttled render frame when cursor changes OR when tracks/media change (max 30 FPS)
   useEffect(() => {
     if (!isPlaying) {
       // Check if there are any clips - skip rendering if timeline is empty
@@ -101,7 +116,7 @@ export const Preview: React.FC = () => {
         window.clearTimeout(renderTimeoutRef.current);
       }
     };
-  }, [cursor, isPlaying]); // Removed tracks/mediaItems from deps!
+  }, [cursor, isPlaying, tracksHash, mediaHash]); // Now includes tracksHash/mediaHash!
 
   // Render loop when playing (uses ref to avoid re-creating)
   useEffect(() => {
