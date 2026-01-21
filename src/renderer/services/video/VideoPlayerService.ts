@@ -196,16 +196,6 @@ export class VideoPlayerService {
     // Find all clips at current time (from all tracks)
     const activeClips = this.getActiveClips(tracks, currentTime);
 
-    const totalClips = tracks.reduce((sum, t) => sum + t.clips.length, 0);
-    if (totalClips > 0) {
-      console.log('[VideoPlayer] renderFrame:', {
-        totalClips,
-        activeClips: activeClips.length,
-        currentTime: Math.round(currentTime),
-        media: mediaItems.length
-      });
-    }
-
     if (activeClips.length === 0) {
       // No active clips - show placeholder
       this.ctx.fillStyle = '#444';

@@ -61,9 +61,9 @@ export const Preview: React.FC = () => {
     }
   }, []); // Empty deps - only init once
 
-  // Update timeline when tracks/media/duration change - USE DIRECT DEPS!
+  // Update timeline when tracks/media/duration change (NOT cursor!)
   useEffect(() => {
-    console.log('[Preview] Timeline updated - reloading', {
+    console.log('[Preview] Timeline content changed - reloading', {
       tracksCount: tracks.length,
       clipsCount: tracks.reduce((sum, t) => sum + t.clips.length, 0),
       mediaCount: mediaItems.length
@@ -71,22 +71,21 @@ export const Preview: React.FC = () => {
     videoPlayerService.loadTimeline(tracks, mediaItems, duration);
     videoPlayerService.setDuration(duration);
 
-    // Force immediate render (no throttling for timeline changes)
-    videoPlayerService.renderFrame(tracks, mediaItems, cursor);
-  }, [tracks, mediaItems, duration, cursor]); // Direct dependencies - React detects changes
+    // Reset last render time to force immediate next render
+    lastRenderTimeRef.current = 0;
+  }, [tracks, mediaItems, duration]); // NO cursor here! Only content changes
 
-  // Throttled render frame when cursor changes (max 30 FPS)
+  // Render frame when cursor changes or when paused (throttled to 30 FPS)
   useEffect(() => {
     if (!isPlaying) {
-      // Check if there are any clips - skip rendering if timeline is empty
-      const hasClips = tracksRef.current.some(track => track.clips.length > 0);
+      const hasClips = tracks.some(track => track.clips.length > 0);
 
       if (!hasClips) {
-        // Only render once for empty state, not continuously
+        // Empty timeline - render once
         if (renderTimeoutRef.current) {
           window.clearTimeout(renderTimeoutRef.current);
         }
-        videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+        videoPlayerService.renderFrame(tracks, mediaItems, cursor);
         return;
       }
 
@@ -94,7 +93,7 @@ export const Preview: React.FC = () => {
       const timeSinceLastRender = now - lastRenderTimeRef.current;
 
       if (timeSinceLastRender >= 33) { // ~30 FPS max
-        videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+        videoPlayerService.renderFrame(tracks, mediaItems, cursor);
         lastRenderTimeRef.current = now;
       } else {
         // Debounce - schedule render for later
@@ -102,7 +101,7 @@ export const Preview: React.FC = () => {
           window.clearTimeout(renderTimeoutRef.current);
         }
         renderTimeoutRef.current = window.setTimeout(() => {
-          videoPlayerService.renderFrame(tracksRef.current, mediaItemsRef.current, cursor);
+          videoPlayerService.renderFrame(tracks, mediaItems, cursor);
           lastRenderTimeRef.current = Date.now();
         }, 33 - timeSinceLastRender);
       }
@@ -113,7 +112,7 @@ export const Preview: React.FC = () => {
         window.clearTimeout(renderTimeoutRef.current);
       }
     };
-  }, [cursor, isPlaying]); // Only cursor changes
+  }, [cursor, isPlaying, tracks, mediaItems]); // Re-render when cursor OR content changes
 
   // Render loop when playing (uses ref to avoid re-creating)
   useEffect(() => {
